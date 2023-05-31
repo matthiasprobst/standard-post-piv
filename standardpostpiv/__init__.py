@@ -1,6 +1,7 @@
 import xarray as xr
 
 from . import plotting
+from . import standardplots
 from . import xr_accessors
 from .report import Report
 from .statistics import stats

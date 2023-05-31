@@ -12,7 +12,7 @@ class ReportItem:
     @property
     def tmp_filename(self):
         if self._tmp_filename is None:
-            self._tmp_filename = h5tbx.generate_temporary_filename(prefix='h5postpiv_report_',
+            self._tmp_filename = h5tbx.generate_temporary_filename(prefix='standardpostpiv_report_',
                                                                    suffix='.hdf', touch=True)
         return self._tmp_filename
 

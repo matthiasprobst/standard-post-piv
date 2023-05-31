@@ -3,7 +3,8 @@ import xarray as xr
 from .core import ReportItem
 
 
-class Velocity(ReportItem):
+from .displacement import Displacement
+class Velocity(Displacement):
     """Report velocity interface class"""
     identifier = {'u': 'x_velocity',
                   'v': 'y_velocity',
@@ -11,16 +12,6 @@ class Velocity(ReportItem):
                   'mag_inplane': 'inplane_velocity',
                   'mag': 'magnitude_of_velocity',
                   }
-
-    @property
-    def x(self):
-        """x-velocity"""
-        return self.get_dataset_by_standard_name(self.identifier['u'])
-
-    @property
-    def y(self):
-        """y-velocity"""
-        return self.get_dataset_by_standard_name(self.identifier['v'])
 
     @property
     def z(self):
@@ -52,26 +43,10 @@ class Velocity(ReportItem):
         with xr.set_options(keep_attrs=True):
             return self.inplane_vector.mean('time')
 
-    # def quiver(self, mean=True):
-    #     vec =
-
     @property
     def magnitude(self):
         """velocity magnitude"""
         return self.get_dataset_by_standard_name('mag')
-
-    @property
-    def ndim(self) -> int:
-        return self.x.ndim
-
-    def is_snapshot(self) -> bool:
-        return self.ndim == 2
-
-    def is_plane(self) -> bool:
-        return self.ndim == 3
-
-    def is_mplane(self) -> bool:
-        return self.ndim == 4
 
     def is_2D2C(self) -> bool:
         """If there is no w-component in the file, the data is 2d"""

@@ -4,88 +4,9 @@ import pandas as pd
 import xarray as xr
 
 
-@xr.register_dataset_accessor("stats")
-class StatsAccessor:
-    """Accessor that prints statistics of data variables"""
-
-    def __init__(self, xarray_obj):
-        """Initialize the accessor"""
-        self._obj = xarray_obj
-
-    def __call__(self, *args, **kwargs):
-        return stats(self._obj)
-
-
-@xr.register_dataarray_accessor("stats")
-class StatsAccessor:
-    """Accessor that prints statistics of data variables"""
-
-    def __init__(self, xarray_obj):
-        """Initialize the accessor"""
-        self._obj = xarray_obj
-
-    def __call__(self, *args, **kwargs):
-        return stats(self._obj)
-
-
-@xr.register_dataarray_accessor("running_mean")
-class RunningMeanAccessor:
-    """Accessor that computes running mean of data variables"""
-
-    def __init__(self, xarray_obj):
-        """Initialize the accessor"""
-        self._obj = xarray_obj
-
-    def __call__(self):
-        attrs = self._obj.attrs
-        attrs.update({'standard_name': f'running_mean_of_{self._obj.standard_name}'})
-        return xr.DataArray(name=f'running_mean_of_{self._obj.name}',
-                            data=running_mean(self._obj.values),
-                            dims=self._obj.dims,
-                            coords=self._obj.coords,
-                            attrs=attrs)
-
-
-@xr.register_dataarray_accessor("running_std")
-class RunningStdAccessor:
-    """Accessor that computes running standard deviation of data variables"""
-
-    def __init__(self, xarray_obj):
-        """Initialize the accessor"""
-        self._obj = xarray_obj
-
-    def __call__(self, ddof: int = 2):
-        attrs = self._obj.attrs
-        attrs.update({'standard_name': f'running_standard_deviation_of_{self._obj.standard_name}'})
-        return xr.DataArray(name=f'running_std_of_{self._obj.name}',
-                            data=running_std(self._obj.values, axis=0, ddof=ddof),
-                            dims=self._obj.dims,
-                            coords=self._obj.coords,
-                            attrs=attrs)
-
-
-@xr.register_dataarray_accessor("running_relative_standard_deviation")
-class RunningRStdAccessor:
-    """Accessor that computes running standard deviation of data variables"""
-
-    def __init__(self, xarray_obj):
-        """Initialize the accessor"""
-        self._obj = xarray_obj
-
-    def __call__(self, ddof: int = 2):
-        attrs = self._obj.attrs
-        attrs.update(
-            {'standard_name': f'running_relative_standard_deviation_of_{self._obj.standard_name}',
-             'units': ''}
-        )
-        return xr.DataArray(name=f'running_rstd_of_{self._obj.name}',
-                            data=running_relative_standard_deviation(self._obj.values, axis=0, ddof=ddof),
-                            dims=self._obj.dims,
-                            coords=self._obj.coords,
-                            attrs=attrs)
-
 
 def stats(target):
+    """compute stats for the target"""
     if isinstance(target, xr.DataArray):
         return pd.DataFrame(
             {target.name: {
