@@ -11,7 +11,7 @@ import h5rdmtoolbox as h5tbx
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
-from typing import Union, List, Tuple
+from typing import Union, List, Tuple, Dict
 
 
 def plot_velocity_field(h5):
@@ -26,7 +26,7 @@ def plot_velocity_field(h5):
 
 def piv_scatter(u: Union[np.ndarray, xr.DataArray],
                 v: Union[np.ndarray, xr.DataArray],
-                fiwsize: Union[int, List[int], Tuple[int]],
+                fiwsize: Union[int, List[int], Tuple[int], Dict],
                 color='k',
                 alpha=0.5,
                 marker='.',
@@ -40,8 +40,8 @@ def piv_scatter(u: Union[np.ndarray, xr.DataArray],
         x-velocity or x-displacement
     v: Union[xr.DataArray, np.ndarray]
         y-velocity or y-displacement
-    fiwsize: Union[int, List[int], Tuple[int]]
-        final interrogation area size in pixels or real units
+    fiwsize: Union[int, List[int], Tuple[int], Dict]
+        final interrogation window size in pixels or real units
     color: str
         color of the scatter plot
     alpha: float
@@ -67,15 +67,23 @@ def piv_scatter(u: Union[np.ndarray, xr.DataArray],
     else:
         dy = v.ravel()
 
-    if isinstance(fiwsize, int):
-        fiwsize = (fiwsize, fiwsize)
+    if isinstance(fiwsize, dict):
+        fiwsize = (int(fiwsize['x']), int(fiwsize['y']))
+    elif isinstance(fiwsize, int):
+        fiwsize = (int(fiwsize), int(fiwsize))
+    else:
+        fiwsize = tuple(map(int, fiwsize))
 
     if ax is None:
         fig, ax = plt.subplots()
     ax.scatter(dx, dy, color=color, alpha=alpha, marker=marker, **kwargs)
+
     if fiwsize is not None:
-        rec = plt.Rectangle((-fiwsize[0] / 2, -fiwsize[1] / 2), fiwsize[0], fiwsize[1], edgecolor='k', facecolor='none')
-        ax.axes.add_patch(rec)
+        if fiwsize[0] is not None and fiwsize[1] is not None:
+            rec = plt.Rectangle((-fiwsize[0] / 2, -fiwsize[1] / 2), fiwsize[0], fiwsize[1], edgecolor='k', facecolor='none')
+            ax.axes.add_patch(rec)
+        else:
+            print('Unable to plot interrogation window size')
 
     if indicate_means:
         xlims = ax.get_xlim()
@@ -111,7 +119,8 @@ def piv_scatter(u: Union[np.ndarray, xr.DataArray],
     ax.set_aspect(aspect)
     return ax
 
-def piv_hist(u, v, **kwargs):
+
+def piv_hist(u, v, ax=None, **kwargs):
     xlabel1 = kwargs.pop('xlabel1', None)
     xlabel2 = kwargs.pop('xlabel2', None)
 
@@ -126,7 +135,13 @@ def piv_hist(u, v, **kwargs):
     else:
         dy = v.ravel()
 
-    fig, axs = plt.subplots(2, 1, sharex=True)
+    if ax is None:
+        fig, axs = plt.subplots(2, 1, sharex=True)
+    else:
+        if not len(ax) == 2:
+            raise ValueError('ax must be a list of two axes')
+        axs = ax
+        
     axs[0].hist(dx, **kwargs)
     axs[1].hist(dy, **kwargs)
 
@@ -156,4 +171,3 @@ def piv_hist(u, v, **kwargs):
     axs[1].set_xlabel(xlabel2)
     axs[0].set_ylabel('p / -')
     axs[1].set_ylabel('p / -')
-

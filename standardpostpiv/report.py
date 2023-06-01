@@ -5,6 +5,7 @@ The report is generated based on a certain convention!
 
 import h5rdmtoolbox as h5tbx
 import pathlib
+from typing import Dict
 
 from .core import ReportItem
 from .displacement import Displacement
@@ -57,13 +58,46 @@ class Report(ReportItem):
 
     @property
     def fiwsize(self):
-        """alias for final interrogation area"""
+        """alias for final interrogation window size"""
         return self.final_interrogation_window_size
 
     @property
-    def final_interrogation_window_size(self):
-        """final interrogation area"""
-        return self.get_dataset_by_standard_name('final_interrogation_window_size')
+    def final_interrogation_window_size(self) -> Dict:
+        """final interrogation window size"""
+        return {'x': self.x_final_interrogation_window_size,
+                'y': self.y_final_interrogation_window_size}
+
+    @property
+    def x_final_interrogation_window_size(self):
+        """final interrogation window size in x-direction"""
+        fiws = self.get_dataset_by_standard_name('x_final_interrogation_window_size')
+        if fiws is None:
+            return None
+        return fiws[()]
+
+    @property
+    def y_final_interrogation_window_size(self):
+        """final interrogation window size in y-direction"""
+        fiws = self.get_dataset_by_standard_name('y_final_interrogation_window_size')[()]
+        if fiws is None:
+            return None
+        return fiws[()]
+
+    @property
+    def x_final_interrogation_window_overlap_size(self):
+        """final interrogation window size in x-direction"""
+        fiwos = self.get_dataset_by_standard_name('x_final_interrogation_window_overlap_size')
+        if fiwos is None:
+            return None
+        return fiwos[()]
+
+    @property
+    def y_final_interrogation_window_overlap_size(self):
+        """final interrogation window size in y-direction"""
+        fiwos = self.get_dataset_by_standard_name('y_final_interrogation_window_overlap_size')[()]
+        if fiwos is None:
+            return None
+        return fiwos[()]
 
     def is_plane(self):
         return self.velocity.is_plane()
@@ -107,7 +141,20 @@ class Report(ReportItem):
         import pandas as pd
         return pd.Series({'contact': self.contact,
                           'pivtype': self.pivtype,
-                          'FOV': self.fov})
+                          'FOV': self.fov,
+                          'PIV-Method': self.piv_method,
+                          'Final IW size': [int(self.x_final_interrogation_window_size.values),
+                                            int(self.y_final_interrogation_window_size.values)],
+                          'Final OV size': [int(self.x_final_interrogation_window_overlap_size.values),
+                                            int(self.y_final_interrogation_window_overlap_size.values)],
+                          })
+
+    @property
+    def piv_method(self):
+        pm = self.get_dataset_by_standard_name('piv_method')
+        if pm is None:
+            return 'unknown'
+        return pm[()]
 
     @property
     def contact(self):

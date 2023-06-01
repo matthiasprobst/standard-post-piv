@@ -53,14 +53,16 @@ class ContourfAndQuiverAccessor:
                             x='x', y='y',
                             u='u', v='v', every=2,
                             contourf_kwargs=None,
-                            quiver_kwargs=None):
+                            quiver_kwargs=None,
+                            ax=None):
         return plotting.contourf_and_quiver(self._obj,
                                             contourf_variable,
                                             x, y,
                                             u, v,
                                             every,
                                             contourf_kwargs,
-                                            quiver_kwargs)
+                                            quiver_kwargs,
+                                            ax=ax)
 
     def stats(self, ):
         return statistics.stats(self._obj)
