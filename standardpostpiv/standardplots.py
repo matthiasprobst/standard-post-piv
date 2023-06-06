@@ -141,7 +141,7 @@ def piv_hist(u, v, ax=None, **kwargs):
         if not len(ax) == 2:
             raise ValueError('ax must be a list of two axes')
         axs = ax
-        
+
     axs[0].hist(dx, **kwargs)
     axs[1].hist(dy, **kwargs)
 

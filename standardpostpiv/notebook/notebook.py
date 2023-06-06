@@ -1,12 +1,12 @@
 import nbformat as nbf
 import pathlib
 import tqdm
-# get current datetime:
 from datetime import datetime
 from nbclient import NotebookClient
 from nbconvert.preprocessors import ExecutePreprocessor
 
 from .sections import TitleSection, ConvergenceSection, StatisticsSection, VelocityPlots, MiscSection
+from .. import core_logger
 
 now = datetime.now()
 
@@ -97,12 +97,12 @@ class PIVReportNotebook:
 
         self.notebook_filename = notebook_filename
 
-        print(f'Notebook filename: {notebook_filename}')
+        core_logger.debug(f'Notebook filename: {notebook_filename}')
 
         # Create a new notebook object
         notebook = nbf.v4.new_notebook()
 
-        print(f'Section names: {list(self.sections.keys())}')
+        core_logger.debug(f'Section names: {list(self.sections.keys())}')
 
         # Add the code cell to the notebook
         _cells = [section.get_cells() for section in self.sections.values()]
@@ -110,11 +110,11 @@ class PIVReportNotebook:
         notebook['cells'] = [item.make() for sublist in _cells for item in sublist]
 
         # Save the notebook to a file
-        print(f'Writing notebook to {notebook_filename}')
+        core_logger.debug(f'Writing notebook to {notebook_filename}')
         nbf.write(notebook, str(notebook_filename))
 
         if execute_notebook:
-            print(f'Executing the notebook: {notebook_filename}')
+            core_logger.debug(f'Executing the notebook: {notebook_filename}')
             self.execute(inplace=inplace,
                          to_html=to_html,
                          to_pdf=to_pdf)
@@ -152,9 +152,10 @@ class PIVReportNotebook:
 
         if to_html:
             import subprocess
-            print(f'jupyter nbconvert --to html {output_notebook_filename}')
+            core_logger.debug(f'jupyter nbconvert --to html {output_notebook_filename}')
             subprocess.run(f'jupyter nbconvert --to html {output_notebook_filename}'.split(' '))
 
         if to_pdf:
             import subprocess
+            core_logger.debug(f'jupyter nbconvert --to pdf {output_notebook_filename}')
             subprocess.run(f'jupyter nbconvert --to pdf {output_notebook_filename}'.split(' '))

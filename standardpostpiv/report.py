@@ -136,16 +136,22 @@ class Report(ReportItem):
     def add_section(self, section):
         self._sections.append(section(self))
 
+    @property
+    def software(self):
+        with h5tbx.File(self.filename) as h5:
+            return h5.attrs['software']
+
     def info(self):
         """return general information about the file"""
         import pandas as pd
         return pd.Series({'contact': self.contact,
+                          'software': self.software,
                           'pivtype': self.pivtype,
-                          'FOV': self.fov,
-                          'PIV-Method': self.piv_method,
-                          'Final IW size': [int(self.x_final_interrogation_window_size.values),
+                          'fov': self.fov,
+                          'pivmethod': self.piv_method,
+                          'final_iw_size': [int(self.x_final_interrogation_window_size.values),
                                             int(self.y_final_interrogation_window_size.values)],
-                          'Final OV size': [int(self.x_final_interrogation_window_overlap_size.values),
+                          'final_ov_size': [int(self.x_final_interrogation_window_overlap_size.values),
                                             int(self.y_final_interrogation_window_overlap_size.values)],
                           })
 
