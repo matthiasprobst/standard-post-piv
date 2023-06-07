@@ -17,11 +17,16 @@ class TitleSection(NotebookSection):
 
     def get_cells(self):
         """write the cells"""
+        fs = self.notebook.report.get_flag_statistic()
+        vdp = fs[1]['percentage']  # valid detection probability
+        vdp
+
         return [markdown_cells(['# PIV Report',
                                 # 'Automatically created with<br>'
                                 f'{make_badge("type", self.notebook.report.info()["pivtype"], "green")} '
                                 f'{make_badge("method", self.notebook.report.info()["pivmethod"], "blue")} '
                                 f'{make_badge("winsize", self.notebook.report.info()["final_iw_size"], "organe")}',
+                                f'{make_badge("vdp", f"{vdp:.2f}%25", "green")}',
                                 f'[{make_badge("contact", self.notebook.report.contact.replace("-", "--"), "red")}]({self.notebook.report.contact}) '
                                 f'{make_badge("date", self.notebook.creation_datetime.strftime("%d/%m/%Y %H:%M:%S"), "lightgray")}',
                                 f'{make_badge("standard_post_piv", __version__, "lightgray")}',
@@ -32,9 +37,9 @@ class TitleSection(NotebookSection):
                             "warnings.filterwarnings('ignore')"]),
                 code_cells([f'piv_filename = r"{self.notebook.report.filename.absolute()}"',
                             '',
-                            'report = spp.Report(piv_filename)', ]),]
-                # markdown_cells(['## General information', ]),
-                # code_cells([f'info = report.info()',
-                #             'for k, v in info.items():',
-                #             '    print(f"{k:<20}: {v}")'])
-                # ]
+                            'report = spp.Report(piv_filename)', ]), ]
+        # markdown_cells(['## General information', ]),
+        # code_cells([f'info = report.info()',
+        #             'for k, v in info.items():',
+        #             '    print(f"{k:<20}: {v}")'])
+        # ]

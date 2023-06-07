@@ -10,7 +10,7 @@ from typing import Dict, List
 
 from .core import ReportItem
 from .displacement import Displacement
-from .flags import get_flag_names
+from .flags import explain_flags
 from .fov import FOV
 from .velocity import Velocity
 
@@ -116,25 +116,31 @@ class Report(ReportItem):
     def is_2D3C(self):
         return self.velocity.is_2D3C()
 
-    @staticmethod
-    def explain_flags(flag, flag_meaning) -> List[str]:
-        """Explain the flags"""
-        flag_meaning = {int(k): v for k, v in flag_meaning.items()}
-        if isinstance(flag, (list, tuple)):
-            return [Report.explain_flags(f, flag_meaning) for f in flag]
-        if isinstance(flag, np.ndarray):
-            return [Report.explain_flags(f, flag_meaning) for f in flag.tolist()]
-        return get_flag_names(flag, flag_meaning)
+    @property
+    def flags(self):
+        return self.get_dataset_by_standard_name('piv_flags')[()]
 
-    @staticmethod
-    def flag_statistic(flags: np.ndarray, flag_meaning: Dict):
-        unique_flags = np.unique(flags)
+    @property
+    def unique_flags(self):
+        return np.unique(self.velocity.flags[:])
+
+    def explain_flags(self) -> List[str]:
+        """Explain the flags"""
+        flag_arr = np.unique(self.velocity.flags[:])
+        flag_meaning = self.velocity.flags.attrs['flag_meaning']
+        flag_meaning = {int(k): v for k, v in flag_meaning.items()}
+        return explain_flags(flag_arr, flag_meaning)
+
+    def get_flag_statistic(self):
+        unique_flags = self.unique_flags
+        flags = self.flags
+        flag_meaning = self.velocity.flags.attrs['flag_meaning']
         ntot = flags.size
         out = {}
         for u in unique_flags:
             n = np.count_nonzero(flags == u)
-            out[u] = {'name': Report.explain_flags(u, flag_meaning), 'count': n, 'percentage': n / ntot * 100}
-            print(f'{u}: {Report.explain_flags(u, flag_meaning)} ({n}, {n / ntot * 100:.2f})')
+            out[u] = {'name': explain_flags(u, flag_meaning), 'count': n, 'percentage': n / ntot * 100}
+            print(f'{u}: {explain_flags(u, flag_meaning)} ({n}, {n / ntot * 100:.2f})')
         return out
 
     @property

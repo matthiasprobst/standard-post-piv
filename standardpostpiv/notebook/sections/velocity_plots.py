@@ -12,11 +12,13 @@ class VelocityPlots(NotebookSection):
 
         if self.notebook.report.velocity.is_snapshot():
             cells.append(markdown_cells('### In-plane velocity'))
-            cells.append(code_cells(["report.velocity.inplane_vector.ssp.contourf_and_quiver(every=(2, 2))"]))
+            cells.append(
+                code_cells(["report.velocity.inplane_vector.ssp.interactive_contourf_and_quiver(every=(2, 2))"]))
             cells.append(code_cells("report.velocity.inplane_velocity.ssp.stats()"))
         else:
             cells.append(markdown_cells('### Mean in-plane velocity'))
-            cells.append(code_cells(["report.velocity.inplane_vector.ssp.contourf_and_quiver(every=(2, 2))", ]))
+            cells.append(
+                code_cells(["report.velocity.inplane_vector.ssp.interactive_contourf_and_quiver(every=(2, 2))", ]))
             cells.append(code_cells("report.velocity.inplane_velocity.ssp.stats()"))
 
         # --- monitor/line plots ---
@@ -38,19 +40,3 @@ class VelocityPlots(NotebookSection):
                                  ]))
 
         return cells
-# self.add_code_cell([
-#     "report.velocity.mean_inplane_velocity.plot.contourf_and_quiver(every=[4, 8], quiver_kwargs={'scale': 200})",
-#     "report.velocity.mean_inplane_velocity.stats()"])"""]))
-#
-#         # --- monitor/line plots ---
-#         cells.append(code_cells(["""if report.velocity.is_snapshot():
-#     from .sections import monitor
-#     monitor.snapshot.plot_along_lines(self,
-#                                       x="np.linspace(600, 600, 31)",
-#                                       y="np.linspace(300, 900, 31)")
-# else:
-#     from .sections import monitor
-#     monitor.plane.plot_along_lines(self,
-#                                    x="np.linspace(600, 600, 31)",
-#                                    y="np.linspace(300, 900, 31)")"""]))
-#         return cells

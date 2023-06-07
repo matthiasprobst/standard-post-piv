@@ -1,8 +1,9 @@
+import numpy as np
 import xarray as xr
 
 # noinspection PyUnresolvedReferences
 from . import plotting, statistics
-
+from . import report
 
 @xr.register_dataset_accessor("every")
 class Every:
@@ -48,13 +49,41 @@ class ContourfAndQuiverAccessor:
         """Initialize the accessor"""
         self._obj = xarray_obj
 
+    def interactive_contourf_and_quiver(self,
+                                        contourf_variable: str = 'mag',
+                                        x='x', y='y',
+                                        u='u', v='v', every=2,
+                                        contourf_kwargs=None,
+                                        quiver_kwargs=None,
+                                        ax=None,
+                                        initial_flag: int = None):
+        flag_values = np.unique(self._obj['flags'].values)
+
+        flag_meaning = self._obj['flags'].attrs['flag_meaning']
+
+        mask_names = ['_'.join(report.Report.explain_flags(mark_flag, flag_meaning)) for mark_flag in flag_values]
+
+        plotting.simple_dropdown_plot([f'{flag}-{mask_name}'  for flag, mask_name in zip(flag_values, mask_names)],
+                                      plotting.contourf_and_quiver,
+                                      initial_flag,
+                                      self._obj,
+                                      contourf_variable,
+                                      x, y,
+                                      u, v,
+                                      every,
+                                      contourf_kwargs,
+                                      quiver_kwargs,
+                                      ax=ax)
+
     def contourf_and_quiver(self,
                             contourf_variable: str = 'mag',
                             x='x', y='y',
                             u='u', v='v', every=2,
                             contourf_kwargs=None,
                             quiver_kwargs=None,
-                            ax=None):
+                            ax=None,
+                            mark_flag: int = None):
+        """plot contourf and quiver in one plot"""
         return plotting.contourf_and_quiver(self._obj,
                                             contourf_variable,
                                             x, y,
@@ -62,7 +91,8 @@ class ContourfAndQuiverAccessor:
                                             every,
                                             contourf_kwargs,
                                             quiver_kwargs,
-                                            ax=ax)
+                                            ax=ax,
+                                            mark_flag=mark_flag)
 
     def stats(self, ):
         return statistics.stats(self._obj)

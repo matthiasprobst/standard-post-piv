@@ -1,9 +1,8 @@
 import xarray as xr
 
-from .core import ReportItem
-
-
 from .displacement import Displacement
+
+
 class Velocity(Displacement):
     """Report velocity interface class"""
     identifier = {'u': 'x_velocity',
@@ -19,6 +18,10 @@ class Velocity(Displacement):
         return self.get_dataset_by_standard_name(self.identifier['w'])
 
     @property
+    def flags(self):
+        return self.get_dataset_by_standard_name('piv_flags')
+
+    @property
     def inplane_velocity(self):
         """in-plane velocity magnitude"""
         mag_inplane = self.get_dataset_by_standard_name('mag_inplane')
@@ -27,6 +30,7 @@ class Velocity(Displacement):
 
     @property
     def mean_inplane_velocity(self):
+        # TODO: This is too simple: If there are values masked along the way, the mean will be wrong
         return self.inplane_vector.mean('time')
 
     @property
@@ -35,7 +39,8 @@ class Velocity(Displacement):
         u = self.x[:]
         v = self.y[:]
         mag = self.inplane_velocity[:]
-        return xr.Dataset(dict(u=u, v=v, mag=mag))
+        flags = self.flags[:]
+        return xr.Dataset(dict(u=u, v=v, mag=mag, flags=flags))
 
     @property
     def mean_inplane_vector(self):
