@@ -4,11 +4,13 @@ The report is generated based on a certain convention!
 """
 
 import h5rdmtoolbox as h5tbx
+import numpy as np
 import pathlib
-from typing import Dict
+from typing import Dict, List
 
 from .core import ReportItem
 from .displacement import Displacement
+from .flags import get_flag_names
 from .fov import FOV
 from .velocity import Velocity
 
@@ -113,6 +115,27 @@ class Report(ReportItem):
 
     def is_2D3C(self):
         return self.velocity.is_2D3C()
+
+    @staticmethod
+    def explain_flags(flag, flag_meaning) -> List[str]:
+        """Explain the flags"""
+        flag_meaning = {int(k): v for k, v in flag_meaning.items()}
+        if isinstance(flag, (list, tuple)):
+            return [Report.explain_flags(f, flag_meaning) for f in flag]
+        if isinstance(flag, np.ndarray):
+            return [Report.explain_flags(f, flag_meaning) for f in flag.tolist()]
+        return get_flag_names(flag, flag_meaning)
+
+    @staticmethod
+    def flag_statistic(flags: np.ndarray, flag_meaning: Dict):
+        unique_flags = np.unique(flags)
+        ntot = flags.size
+        out = {}
+        for u in unique_flags:
+            n = np.count_nonzero(flags == u)
+            out[u] = {'name': Report.explain_flags(u, flag_meaning), 'count': n, 'percentage': n / ntot * 100}
+            print(f'{u}: {Report.explain_flags(u, flag_meaning)} ({n}, {n / ntot * 100:.2f})')
+        return out
 
     @property
     def pivtype(self) -> str:
