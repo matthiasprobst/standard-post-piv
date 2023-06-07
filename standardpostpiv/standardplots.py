@@ -31,6 +31,7 @@ def piv_scatter(u: Union[np.ndarray, xr.DataArray],
                 alpha=0.5,
                 marker='.',
                 indicate_means: bool = True,
+                show_window_size: bool = True,
                 **kwargs):
     """
 
@@ -78,18 +79,20 @@ def piv_scatter(u: Union[np.ndarray, xr.DataArray],
         fig, ax = plt.subplots()
     ax.scatter(dx, dy, color=color, alpha=alpha, marker=marker, **kwargs)
 
-    if fiwsize is not None:
-        if fiwsize[0] is not None and fiwsize[1] is not None:
-            rec = plt.Rectangle((-fiwsize[0] / 2, -fiwsize[1] / 2), fiwsize[0], fiwsize[1], edgecolor='k', facecolor='none')
-            ax.axes.add_patch(rec)
-        else:
-            print('Unable to plot interrogation window size')
+    if show_window_size:
+        if fiwsize is not None:
+            if fiwsize[0] is not None and fiwsize[1] is not None:
+                rec = plt.Rectangle((-fiwsize[0] / 2, -fiwsize[1] / 2), fiwsize[0], fiwsize[1], edgecolor='k',
+                                    facecolor='none')
+                ax.axes.add_patch(rec)
+            else:
+                print('Unable to plot interrogation window size')
 
     if indicate_means:
         xlims = ax.get_xlim()
         ylims = ax.get_ylim()
-        plt.hlines(u.mean(), *xlims, linestyle='--', color='r')
-        plt.vlines(v.mean(), *ylims, linestyle='--', color='r')
+        plt.hlines(v.mean(), *xlims, linestyle='--', color='r')
+        plt.vlines(u.mean(), *ylims, linestyle='--', color='r')
 
     if u_is_xr and xlabel is None:
         if 'standard_name' in u.attrs:

@@ -4,9 +4,8 @@ import pandas as pd
 import xarray as xr
 
 
-
 def stats(target):
-    """compute stats for the target"""
+    """compute stats for the target. dataset including flags is ignored"""
     if isinstance(target, xr.DataArray):
         return pd.DataFrame(
             {target.name: {
@@ -17,7 +16,7 @@ def stats(target):
             }
         )
     elif isinstance(target, xr.Dataset):
-        df = [stats(v) for k, v in target.items()]
+        df = [stats(v) for k, v in target.items() if 'flags' not in k]
         return pd.concat(df, axis=1)
     else:
         raise NotImplementedError(f'stats is not implemented for {type(target)}')
