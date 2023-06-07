@@ -19,9 +19,9 @@ class ConvergenceSection(NotebookSection):
                                      "iy, ix = _shape[0] // 2, _shape[1] // 2",
                                      "",
                                      "fig, axs = plt.subplots(1, 2, figsize=(10, 4))",
-                                     "report.velocity.inplane_velocity[:, iy, ix].running_mean().plot(ax=axs[0])",
-                                     "report.velocity.inplane_velocity[:, iy, ix].running_std().plot(ax=axs[0])",
-                                     "report.velocity.inplane_velocity[:, iy, ix].running_relative_standard_deviation().plot(ax=axs[1])",
+                                     "report.velocity.inplane_velocity[:, iy, ix].ssp.running_mean().plot(ax=axs[0])",
+                                     "report.velocity.inplane_velocity[:, iy, ix].ssp.running_std().plot(ax=axs[0])",
+                                     "report.velocity.inplane_velocity[:, iy, ix].ssp.running_relative_standard_deviation().plot(ax=axs[1])",
                                      "plt.tight_layout()"]))
 
         return cells

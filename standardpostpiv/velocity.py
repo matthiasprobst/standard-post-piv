@@ -59,7 +59,7 @@ class Velocity(Displacement):
 
     def is_2D3C(self) -> bool:
         """If there is no w-component in the file, the data is 2d"""
-        return not self.is_2d2d()
+        return not self.is_2D2C()
 
     def compute_inplane_velocity(self, write_to_file=True):
         """compute magnitude of velocity vectors for all times and planes"""

@@ -3,7 +3,8 @@ import xarray as xr
 
 # noinspection PyUnresolvedReferences
 from . import plotting, statistics
-from . import report
+from .flags import explain_flags
+
 
 @xr.register_dataset_accessor("every")
 class Every:
@@ -61,9 +62,9 @@ class ContourfAndQuiverAccessor:
 
         flag_meaning = self._obj['flags'].attrs['flag_meaning']
 
-        mask_names = ['_'.join(report.Report.explain_flags(mark_flag, flag_meaning)) for mark_flag in flag_values]
+        mask_names = ['_'.join(explain_flags(mark_flag, flag_meaning)) for mark_flag in flag_values]
 
-        plotting.simple_dropdown_plot([f'{flag}-{mask_name}'  for flag, mask_name in zip(flag_values, mask_names)],
+        plotting.simple_dropdown_plot([f'{flag}-{mask_name}' for flag, mask_name in zip(flag_values, mask_names)],
                                       plotting.contourf_and_quiver,
                                       initial_flag,
                                       self._obj,
@@ -118,7 +119,7 @@ class StatsAccessor:
                             coords=self._obj.coords,
                             attrs=attrs)
 
-    def running_strd(self, ddof: int = 2):
+    def running_std(self, ddof: int = 2):
         attrs = self._obj.attrs
         attrs.update({'standard_name': f'running_standard_deviation_of_{self._obj.standard_name}'})
         return xr.DataArray(name=f'running_std_of_{self._obj.name}',
