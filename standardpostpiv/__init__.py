@@ -4,6 +4,7 @@ from standardpostpiv._cfg import set_config, get_config
 from . import _logging
 from . import plotting
 from . import standardplots
+from . import utils
 from . import xr_accessors
 from ._version import __version__
 from .report import Report

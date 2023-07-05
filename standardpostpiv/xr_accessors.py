@@ -1,8 +1,11 @@
 import numpy as np
+import re
+import warnings
 import xarray as xr
 
+from standardpostpiv import get_config
 # noinspection PyUnresolvedReferences
-from . import plotting, statistics
+from . import plotting, statistics, standardplots
 from .flags import explain_flags
 
 
@@ -40,6 +43,202 @@ class Every:
             for k, f in zip(self._obj.dims, factor):
                 slice_dict[k] = slice(None, None, f)
         return self._obj.isel(**slice_dict)
+
+
+@xr.register_dataarray_accessor("piv")
+class PivDataArrayAccessor:
+    """Xarray accessor for PIV data arrays"""
+
+    def __init__(self, xarray_obj):
+        """Initialize the accessor"""
+        self._obj = xarray_obj
+
+    @property
+    def can_be_converted_to_moving_frame(self) -> bool:
+        """Returns True if the data array can be converted to a moving frame of reference.
+        For this to be possible, one coordinate with standard name containing
+        moving_frame must be present.
+
+        Returns
+        -------
+        bool
+            True if the data array can be converted to a moving frame of reference.
+        """
+        # first identify the coordinate with the moving frame standard name:
+        for k, moving_frame in self._obj.coords.items():
+            # use regex to find the moving_frame in string:
+            if re.search('moving_frame', moving_frame.attrs['standard_name']):
+                # found it, return True:
+                return True
+        return False
+
+    def in_moving_frame(self, enable=True) -> xr.DataArray:
+        """Returns the data array in the moving frame of reference.
+        For this to be possible, one coordinate with standard name containing
+        moving_frame must be present.
+        The resulting values will be computed as:
+        new_values = values - values_of_moving_frame
+
+        The standard name is appended with '_in_moving_frame'.
+        The coordinate with the moving frame standard name is dropped.
+
+        Parameters
+        ----------
+        enable: bool
+            If True, the data array is returned in the moving frame of reference.
+
+        Returns
+        -------
+        new_ds: xr.DataArray
+            Data array in moving frame of reference
+
+        Raises
+        ------
+        ValueError
+            If no coordinate with standard name containing 'moving_frame' is found.
+        """
+        if not enable:
+            return self._obj
+        # first identify the coordinate with the moving frame standard name:
+        for k, moving_frame in self._obj.coords.items():
+            # use regex to find the moving_frame in string:
+            if re.search('moving_frame', moving_frame.attrs['standard_name']):
+                # found it, return the relative values:
+                new_ds = (self._obj.pint.quantify() - moving_frame.pint.quantify()).pint.dequantify()
+                new_ds.attrs['standard_name'] = self._obj.attrs['standard_name'] + '_in_moving_frame'
+                return new_ds.drop(k)
+        raise ValueError('No coordinate with "moving_frame" found.')
+
+    def contour(self, flag=1, **kwargs) -> None:
+        """Call contourf on the data array"""
+        flag_ds = None
+        for k, v in self._obj.coords.items():
+            if v.attrs['standard_name'] == 'piv_flags':
+                flag_ds = v
+                break
+
+        kwargs['cmap'] = kwargs.pop('cmap', get_config('cmap'))
+
+        if flag_ds is None:
+            warnings.warn('No flags found for this dataset!')
+            return self._obj.plot.contour(**kwargs)
+        return self._obj.where(flag_ds & flag).plot.contour(**kwargs)
+
+    def contourf(self, flag=1, **kwargs) -> None:
+        """Call contourf on the data array"""
+        flag_ds = self.flags
+
+        kwargs['cmap'] = kwargs.pop('cmap', get_config('cmap'))
+
+        if flag_ds is None:
+            warnings.warn('No flags found for this dataset!')
+            return self._obj.plot.contourf(**kwargs)
+        return self._obj.where(flag_ds & flag).plot.contourf(**kwargs)
+
+    @property
+    def flags(self):
+        for k, v in self._obj.coords.items():
+            if v.attrs['standard_name'] == 'piv_flags':
+                return v
+        return None
+
+    def running_mean(self, *args, **kwargs):
+        attrs = self._obj.attrs
+        attrs.update({'standard_name': f'running_mean_of_{self._obj.standard_name}'})
+        return xr.DataArray(name=f'running_mean_of_{self._obj.name}',
+                            data=statistics.running_mean(self._obj.values),
+                            dims=self._obj.dims,
+                            coords=self._obj.coords,
+                            attrs=attrs)
+
+
+@xr.register_dataset_accessor("piv")
+class PivDatasetAccessor:
+
+    def __init__(self, xarray_obj):
+        """Initialize the accessor"""
+        self._obj = xarray_obj
+
+    def scatter(self, x: str = None, y: str = None, fiwsize=None):
+        """Plot scatter data. Therefore dataset must have two data variables.
+
+        Parameters
+        ----------
+        x : str, optional
+            Name of the x data variable, by default None. If None, the
+            dataset must have exactly two data variables and the first one
+            is used.
+        y : str, optional
+            Name of the y data variable, by default None. If None, the
+            dataset must have exactly two data variables and the second one
+            is used.
+        fiwsize : tuple, optional
+            Figure size, by default None. If not None, the window size is
+            plotted.
+
+        Returns
+        -------
+        ax: matplotlib.axes.Axes
+        """
+        if x is None and y is None:
+            data_vars = list(self._obj.data_vars)
+            if len(data_vars) != 2:
+                raise ValueError('Only two data variables allowed')
+            x = data_vars[0]
+            y = data_vars[1]
+        elif x is not None and y is not None:
+            pass
+        else:
+            raise ValueError('Either both or none of x and y must be given')
+        return standardplots.xr_piv_scatter(self._obj, xname=x, yname=y, fiwsize=fiwsize)
+
+
+@xr.register_dataset_accessor("pivplot")
+class PivPlotAccessor:
+    """Accessor that plots PIV data"""
+
+    def __init__(self, xarray_obj):
+        """Initialize the accessor"""
+        self._obj = xarray_obj
+
+    def contour(self, flag=1, **kwargs) -> None:
+        """Call contourf on the dataset. Expected is to have two items, 'flags' and the data variable."""
+        data_vars = list(self._obj.data_vars)
+        data_vars.remove('flags')
+        if len(data_vars) != 1:
+            raise ValueError('Only one data variable allowed')
+        data = self._obj.where(self._obj['flags'].values & flag)
+        return data[data_vars[0]].plot.contour(**kwargs)
+
+    def contourf(self, flag=1, **kwargs) -> None:
+        """Call contourf on the dataset. Expected is to have two items, 'flags' and the data variable."""
+        print(kwargs['cmap'])
+        data_vars = list(self._obj.data_vars)
+        data_vars.remove('flags')
+        if len(data_vars) != 1:
+            raise ValueError('Only one data variable allowed')
+        data = self._obj.where(self._obj['flags'].values & flag)
+        return data[data_vars[0]].plot.contourf(**kwargs)
+
+    # def icontourf(self):
+    #     """interactive contourf allowing to select flags"""
+    #     flag_values = np.unique(self._obj['flags'].values)
+    #
+    #     flag_meaning = self._obj['flags'].attrs['flag_meaning']
+    #
+    #     mask_names = ['_'.join(explain_flags(mark_flag, flag_meaning)) for mark_flag in flag_values]
+    #
+    #     plotting.simple_dropdown_plot([f'{flag}-{mask_name}' for flag, mask_name in zip(flag_values, mask_names)],
+    #                                   plotting.contourf_and_quiver,
+    #                                   initial_flag,
+    #                                   self._obj,
+    #                                   contourf_variable,
+    #                                   x, y,
+    #                                   u, v,
+    #                                   every,
+    #                                   contourf_kwargs,
+    #                                   quiver_kwargs,
+    #                                   ax=ax)
 
 
 @xr.register_dataset_accessor("ssp")

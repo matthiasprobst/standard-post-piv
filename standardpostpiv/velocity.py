@@ -18,20 +18,21 @@ class Velocity(Displacement):
         return self.get_dataset_by_standard_name(self.identifier['w'])
 
     @property
-    def flags(self):
-        return self.get_dataset_by_standard_name('piv_flags')
-
-    @property
     def inplane_velocity(self):
         """in-plane velocity magnitude"""
         mag_inplane = self.get_dataset_by_standard_name('mag_inplane')
         if mag_inplane is None:
             return self.compute_inplane_velocity().inplane_velocity_magnitude
 
+        mag = self.inplane_velocity[:]
+        flags = self.flags[:]
+        return xr.Dataset(dict(u=self.x, v=self.y, mag=mag, flags=flags))
+
     @property
     def mean_inplane_velocity(self):
         # TODO: This is too simple: If there are values masked along the way, the mean will be wrong
-        return self.inplane_vector.mean('time')
+        with xr.set_options(keep_attrs=True):
+            return self.inplane_velocity.where(self.inplane_velocity.flags & 1).mean('time')
 
     @property
     def inplane_vector(self):
@@ -44,14 +45,22 @@ class Velocity(Displacement):
 
     @property
     def mean_inplane_vector(self):
-        """mean velocity vector"""
+        """mean velocity vector. The return data considers only active vectors (piv flag == 1)"""
         with xr.set_options(keep_attrs=True):
-            return self.inplane_vector.mean('time')
+            return self.inplane_vector.where(self.inplane_vector.flags & 1).mean('time')
 
     @property
     def magnitude(self):
         """velocity magnitude"""
-        return self.get_dataset_by_standard_name('mag')
+        res = self.get_dataset_by_standard_name(self.identifier['mag'])
+        if res is None:
+            vel_vec = self.compute_magnitude()
+            return vel_vec
+
+    def time_average(self, piv_flag=1):
+        """compute the time average of the velocity vector for all vectors that are bitwise-true for the given flag"""
+        with xr.set_options(keep_attrs=True):
+            return self.inplane_vector.where(self.inplane_vector.flags & piv_flag).mean('time')
 
     def is_2D2C(self) -> bool:
         """If there is no w-component in the file, the data is 2d"""

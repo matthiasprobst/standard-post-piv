@@ -24,6 +24,53 @@ def plot_velocity_field(h5):
     ndim = u.ndim
 
 
+def _add_winsize_to_plot(ax, fiwsize):
+    if isinstance(fiwsize, dict):
+        fiwsize = (int(fiwsize['x']), int(fiwsize['y']))
+    elif isinstance(fiwsize, int):
+        fiwsize = (int(fiwsize), int(fiwsize))
+    else:
+        fiwsize = tuple(map(int, fiwsize))
+
+    if fiwsize is not None:
+        if fiwsize[0] is not None and fiwsize[1] is not None:
+            rec = plt.Rectangle((-fiwsize[0] / 2, -fiwsize[1] / 2), fiwsize[0], fiwsize[1], edgecolor='k',
+                                facecolor='none')
+            ax.axes.add_patch(rec)
+        else:
+            print('Unable to plot interrogation window size')
+    return ax
+
+
+def xr_piv_scatter(dataset,
+                   xname,
+                   yname,
+                   flagname='piv_flags',
+                   fiwsize: Union[int, List[int], Tuple[int], Dict] = None):
+    x = dataset[xname]
+    y = dataset[yname]
+    piv_flags = dataset[flagname]
+
+    fig, ax = plt.subplots()
+    ax.scatter(x.where(piv_flags == 1), y.where(piv_flags == 1), marker='o', s=10, color='k', alpha=0.5,
+               label='active')
+    ax.scatter(x.where(piv_flags & 32), y.where(piv_flags & 33), marker='o', s=10, color='r', alpha=0.5,
+               label='active+interpolated')
+    ax.scatter(x.where(piv_flags & 64), y.where(piv_flags & 65), marker='o', s=10, color='b', alpha=0.5,
+               label='active+replaced')
+
+    if fiwsize:
+        _add_winsize_to_plot(ax, fiwsize)
+
+    ax.set_xlabel(f'{x.standard_name} [{x.units}]')
+    ax.set_ylabel(f'{y.standard_name} [{y.units}]')
+
+    title_arr_names = [f'{c}={x[c].values[()]:f} [{x[c].units}]' for c in x.coords if x[c].ndim == 0]
+    ax.set_title(' '.join(title_arr_names))
+
+    return ax
+
+
 def piv_scatter(u: Union[np.ndarray, xr.DataArray],
                 v: Union[np.ndarray, xr.DataArray],
                 fiwsize: Union[int, List[int], Tuple[int], Dict],

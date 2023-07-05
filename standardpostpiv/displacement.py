@@ -1,20 +1,99 @@
 import xarray as xr
+from h5rdmtoolbox import File
+from typing import Dict
 
 from .core import ReportItem
 
 
+class PIVDataset:
+    """Interface class to HDF datasets. Data is only loaded when requested (sliced).
+    Otherwise file is closed."""
+    __obj_attrs = ('file', 'name', 'attrs',
+                   'ndim', 'shape', 'dtype', 'size',
+                   'chunks', 'compression', 'compression_opts',
+                   'shuffle', 'dims')
+
+    def __init__(self, name, dataset, properties):
+        self.dataset = dataset
+        self.name = name
+        self.properties = properties
+
+    def __getattr__(self, item):
+        if item in self.properties:
+            return self.properties[item]
+        if item in self.__obj_attrs:
+            with File(self.dataset.filename) as h5:
+                if item == 'attrs':
+                    return dict(h5[self.dataset.name].attrs)
+                return h5[self.dataset.name].__getattribute__(item)
+        return super().__getattribute__(item)
+
+    def __repr__(self):
+        # TODO: add dims/coords to shape repr
+        sn = self.standard_name
+        return f'PIVDataset(name="{self.name}", standard_name="{sn}", shape={self.dataset.shape})'
+
+    def sel(self, *args, **kwargs):
+        with File(self.dataset.filename) as h5:
+            target_dataset = h5[self.dataset.name]
+            piv_flag = h5.find_one({'standard_name': 'piv_flags'}, '$dataset')
+            if piv_flag is None:
+                raise ValueError('HDF5 Dataset with standard name attribute "piv_flags" not found in file')
+            return xr.Dataset({self.name: target_dataset.sel(*args, **kwargs),
+                               'flags': piv_flag.sel(*args, **kwargs)},
+                              attrs=target_dataset.attrs)
+
+    def __getitem__(self, item):
+        with File(self.dataset.filename) as h5:
+            target_dataset = h5[self.dataset.name]
+            piv_flag = h5.find_one({'standard_name': 'piv_flags'}, '$dataset')
+            if piv_flag is None:
+                raise ValueError('HDF5 Dataset with standard name attribute "piv_flags" not found in file')
+            return xr.Dataset({self.name: target_dataset[item], 'flags': piv_flag[item]},
+                              attrs=target_dataset.attrs)
+
+
 class Displacement(ReportItem):
     """Report displacement interface class"""
+
     identifier = {'u': 'x_displacement',
                   'v': 'y_displacement',
                   'mag_inplane': 'inplane_displacement',
                   'mag': 'magnitude_of_displacement',
                   }
 
+    def __build_piv_datasets(self, standard_names: Dict) -> xr.Dataset:
+        """builds a dataset with the HDF5 dataset based on the given standard_name and provides piv flag as
+        additional dataset"""
+        flag = self.flags[:]
+        data = {name: self.get_dataset_by_standard_name(sn)[()] for name, sn in standard_names.items()}
+        data['flag'] = flag
+        return xr.Dataset(data)
+
+    def __build_piv_dataset(self, name, standard_name) -> xr.Dataset:
+        """builds a dataset with the HDF5 dataset based on the given standard_name and provides piv flag as
+        additional dataset"""
+        if name is None:
+            name = standard_name
+        return self.__build_piv_datasets({name: standard_name})
+
+    @property
+    def flags(self):
+        """return piv flag data array"""
+        return self.get_dataset_by_standard_name('piv_flags')
+
     @property
     def x(self):
         """x-displacement"""
-        return self.get_dataset_by_standard_name(self.identifier['u'])
+        h5ds = self.get_dataset_by_standard_name(self.identifier['u'])
+        if h5ds is None:
+            raise ValueError(f'No dataset with standard name {self.identifier["u"]} found in file')
+        return h5ds
+        # return PIVDataset(
+        #     'u',
+        #     h5ds,
+        #     properties=dict(h5ds.attrs)
+        # )
 
     @property
     def y(self):
@@ -34,7 +113,7 @@ class Displacement(ReportItem):
 
     @property
     def vector(self):
-        # alias for `inplane_vector`
+        """alias for `inplane_vector`"""
         return self.inplane_vector
 
     @property

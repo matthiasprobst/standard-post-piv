@@ -80,3 +80,34 @@ def contourf_and_quiver(dataset,
     ax.legend()
     ax.legend(loc='center left', bbox_to_anchor=(1.4, 0.5))
     return ax
+
+
+def contourf(dataarray,
+             kwargs=None,
+             ax=None,
+             mark_flag: Union[None, int] = None):
+    """plot contourf and quiver in one plot"""
+    dataarray.plot.contourf(ax=ax, **kwargs)
+
+    if ax is None:
+        ax = plt.gca()
+
+    if mark_flag is None or mark_flag == 'None':
+        return ax
+
+    if isinstance(mark_flag, str):
+        mark_flag = int(mark_flag.split('-')[0])
+
+    flags = dataset['flags']
+    flag_meaning = flags.attrs['flag_meaning']
+
+    mask_name = '_'.join(explain_flags(mark_flag, flag_meaning))
+    dataset.where(flags == mark_flag).every(every).plot.quiver(x, y, u, v,
+                                                               color='r',
+                                                               **quiver_kwargs,
+                                                               ax=ax,
+                                                               label=mask_name)
+
+    ax.legend()
+    ax.legend(loc='center left', bbox_to_anchor=(1.4, 0.5))
+    return ax

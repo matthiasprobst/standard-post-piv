@@ -25,12 +25,14 @@ class VelocityPlots(NotebookSection):
 
         # --- piv scatter ---
         cells.append(markdown_cells('### PIV scatter plot'))
-        cells.append(code_cells(["from standardpostpiv import standardplots",
-                                 "ax = standardplots.piv_scatter(u=report.displacement.inplane_vector.u,",
-                                 "                               v=report.displacement.inplane_vector.v,",
-                                 "                               fiwsize=report.fiwsize,",
-                                 "                               indicate_means=True)",
-                                 ]))
+        cells.append(code_cells(["scatter_ax = report.displacement.inplane_vector[['u', 'v']].sel("
+                                 "time=0).piv.scatter(fiwsize=report.fiwsize)"]))
+        # cells.append(code_cells(["from standardpostpiv import standardplots",
+        #                          "ax = standardplots.piv_scatter(u=report.displacement.inplane_vector.u,",
+        #                          "                               v=report.displacement.inplane_vector.v,",
+        #                          "                               fiwsize=report.fiwsize,",
+        #                          "                               indicate_means=True)",
+        #                          ]))
 
         cells.append(markdown_cells('### PIV histogram plot'))
         cells.append(code_cells(["from standardpostpiv import standardplots",

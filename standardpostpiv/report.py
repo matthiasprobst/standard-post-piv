@@ -4,15 +4,20 @@ The report is generated based on a certain convention!
 """
 
 import h5rdmtoolbox as h5tbx
+import logging
 import numpy as np
 import pathlib
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
+from standardpostpiv import get_config
 from .core import ReportItem
 from .displacement import Displacement
 from .flags import explain_flags
 from .fov import FOV
 from .velocity import Velocity
+
+logger = logging.getLogger(__package__)
+logger.setLevel('ERROR')
 
 attribute_sn_dict = {'u': 'x_velocity',
                      'v': 'y_velocity',
@@ -37,6 +42,11 @@ class Report(ReportItem):
                   'y': 'y_coordinate',
                   'ix': 'x_pixel_coordinate',
                   'iy': 'y_pixel_coordinate', }
+
+    def __init__(self, filename):
+        super().__init__(filename)
+        self._mask = None
+        self._seeding_points = None
 
     @property
     def x(self):
@@ -225,3 +235,36 @@ class Report(ReportItem):
         """return a notebook object allowing to write a standard report on this PIV file"""
         from .notebook.notebook import PIVReportNotebook
         return PIVReportNotebook(self)
+
+    @property
+    def seeding_points(self):
+        if self._seeding_points is not None:
+            return self._seeding_points
+
+        logger.info('Seeding points are generated randomly based on settings.\n'
+                    'You may set user-defined seeding points by e.g. \n'
+                    '>>> report = spp.Report(piv_filename)'
+                    '\n>>> report.seeding_points = [(10, 41), (31, 13)]')
+        from .utils import generate_seeding_points
+        self._seeding_points = generate_seeding_points(self.mask,
+                                                       n=get_config('n_seeding_pts'),
+                                                       min_dist=get_config('min_seeding_point_distance'))
+        return self._seeding_points
+
+    @seeding_points.setter
+    def seeding_points(self, seeding_points: List[Tuple[int, int]]):
+        self._seeding_points = seeding_points
+
+    @property
+    def mask(self):
+        """return the mask of the PIV file"""
+        if self._mask is not None:
+            return self._mask
+        if self.is_plane():
+            _mask = self.displacement.x[0, :, :].piv_flags & 2
+        elif self.is_mplane():
+            _mask = self.displacement.x[0, 0, :, :].piv_flags & 2
+        else:
+            _mask = self.displacement.x[:, :].piv_flags & 2
+        self._mask = _mask != 0
+        return self._mask
