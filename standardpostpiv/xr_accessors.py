@@ -1,12 +1,35 @@
-import numpy as np
 import re
 import warnings
+
+import h5rdmtoolbox as h5tbx
+import numpy as np
+# noinspection PyUnresolvedReferences
+import pint_xarray
 import xarray as xr
+from typing import Union
 
 from standardpostpiv import get_config
 # noinspection PyUnresolvedReferences
 from . import plotting, statistics, standardplots
 from .flags import explain_flags
+
+
+def calc_dwdz(dudx, dvdy):
+    """
+    Calculates dwdz from solving continuity equation:
+        div(v) = 0
+    This is only valid for incompressible flows (=0 on right side of equation)!
+
+    Parameters
+    ----------
+    dudx : `array_like`
+    dvdy : `array_like`
+
+    Returns
+    -------
+    dwdz : `array_like`
+    """
+    return -dudx[:] - dvdy[:]
 
 
 @xr.register_dataset_accessor("every")
@@ -52,6 +75,26 @@ class PivDataArrayAccessor:
     def __init__(self, xarray_obj):
         """Initialize the accessor"""
         self._obj = xarray_obj
+
+    def differentiate(self, coord, edge_order=1, **kwargs) -> xr.DataArray:
+        """Call xr.DataArray.differentiate and add standard_name attribute to the resulting DataArray."""
+        this_sn = self._obj.standard_name
+        this_units = self._obj.units
+        other_sn = self._obj[coord].standard_name
+        other_units = self._obj[coord].units
+
+        ureg = h5tbx.get_ureg()
+
+        q1 = (1 * ureg.Unit(this_units)).to_base_units()
+        q2 = (1 * ureg.Unit(other_units)).to_base_units()
+
+        corr_factor = q1.magnitude / q2.magnitude
+
+        dobj = self._obj.differentiate(coord, edge_order, **kwargs)
+        dobj.attrs['standard_name'] = f'derivative_of_{this_sn}_wrt_{other_sn}'
+        dobj.attrs['units'] = f'{q1.units / q2.units}'
+        dobj.name = f'd{self._obj.name}d{coord}'
+        return dobj * corr_factor
 
     @property
     def can_be_converted_to_moving_frame(self) -> bool:
@@ -106,6 +149,7 @@ class PivDataArrayAccessor:
                 # found it, return the relative values:
                 new_ds = (self._obj.pint.quantify() - moving_frame.pint.quantify()).pint.dequantify()
                 new_ds.attrs['standard_name'] = self._obj.attrs['standard_name'] + '_in_moving_frame'
+                new_ds.attrs['ANCILLARY_DATASETS'].remove(k)
                 return new_ds.drop(k)
         raise ValueError('No coordinate with "moving_frame" found.')
 
@@ -142,6 +186,13 @@ class PivDataArrayAccessor:
                 return v
         return None
 
+    def flag_where(self, flag):
+        return self._obj.where(self.flags & flag)
+
+    @property
+    def active(self):
+        return self.flag_where(1)
+
     def running_mean(self, *args, **kwargs):
         attrs = self._obj.attrs
         attrs.update({'standard_name': f'running_mean_of_{self._obj.standard_name}'})
@@ -151,6 +202,15 @@ class PivDataArrayAccessor:
                             coords=self._obj.coords,
                             attrs=attrs)
 
+    @property
+    def mask(self, flag: int = 2):
+        """Returns the mask as boolean array by bitwise comparison of the flag dataset with the provided flag"""
+        mask = self._obj.piv_flags & flag == 0
+        mask.attrs['standard_name'] = 'piv_mask'
+        mask.attrs['long_name'] = 'PIV mask'
+        mask['name'] = 'mask'
+        return mask.drop(mask.attrs.pop('ANCILLARY_DATASET', {}))
+
 
 @xr.register_dataset_accessor("piv")
 class PivDatasetAccessor:
@@ -158,6 +218,20 @@ class PivDatasetAccessor:
     def __init__(self, xarray_obj):
         """Initialize the accessor"""
         self._obj = xarray_obj
+
+    @property
+    def flags(self):
+        for k, v in self._obj.coords.items():
+            if v.attrs['standard_name'] == 'piv_flags':
+                return v
+        return None
+
+    def flag_where(self, flag):
+        return self._obj.where(self.flags & flag)
+
+    @property
+    def active(self):
+        return self.flag_where(1)
 
     def scatter(self, x: str = None, y: str = None, fiwsize=None):
         """Plot scatter data. Therefore dataset must have two data variables.
@@ -191,6 +265,18 @@ class PivDatasetAccessor:
         else:
             raise ValueError('Either both or none of x and y must be given')
         return standardplots.xr_piv_scatter(self._obj, xname=x, yname=y, fiwsize=fiwsize)
+
+    def _get_by_standard_name(self, standard_name, counts: Union[int, None]):
+        """if counts is not matched, then an error is raised"""
+        res = []
+        for da in self._obj.coords:
+            if self._obj[da].standard_name == standard_name:
+                res.append(da)
+        if counts:
+            if len(res) != counts:
+                raise ValueError(
+                    f'Found {len(res)} variables with standard name {standard_name}, but expected {counts}')
+        return res
 
 
 @xr.register_dataset_accessor("pivplot")

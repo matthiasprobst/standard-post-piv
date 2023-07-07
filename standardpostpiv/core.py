@@ -1,14 +1,7 @@
 import h5rdmtoolbox as h5tbx
 import pathlib
 
-
-def get_dataset_by_standard_name(filename, sn, tmp_filename=None):
-    """returns lazy object. See `h5rdmtoolbox.database.lazy`.
-    Searches in original file and if none found in temporary file"""
-    res = h5tbx.FileDB(filename).find_one({'standard_name': sn}, '$dataset')
-    if res is None and tmp_filename is not None:
-        res = h5tbx.FileDB(tmp_filename).find_one({'standard_name': sn})
-    return res
+from . import utils
 
 
 class ReportItem:
@@ -28,4 +21,4 @@ class ReportItem:
     def get_dataset_by_standard_name(self, sn):
         """returns lazy object. See `h5rdmtoolbox.database.lazy`.
         Searches in original file and if none found in temporary file"""
-        return get_dataset_by_standard_name(self.filename, sn, self.tmp_filename)
+        return utils.get_dataset_by_standard_name(self.filename, sn, self.tmp_filename)

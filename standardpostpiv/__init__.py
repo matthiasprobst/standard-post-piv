@@ -7,7 +7,8 @@ from . import standardplots
 from . import utils
 from . import xr_accessors
 from ._version import __version__
-from .report import Report
+# from .report import Report
+from .report import PIVReport
 from .statistics import stats
 
 xr.set_options(keep_attrs=True)

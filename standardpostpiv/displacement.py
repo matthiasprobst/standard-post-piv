@@ -1,3 +1,4 @@
+import abc
 import xarray as xr
 from h5rdmtoolbox import File
 from typing import Dict
@@ -53,7 +54,10 @@ class PIVDataset:
                               attrs=target_dataset.attrs)
 
 
-class Displacement(ReportItem):
+from .piv_vector import PIVVector
+
+
+class Displacement(ReportItem, PIVVector):
     """Report displacement interface class"""
 
     identifier = {'u': 'x_displacement',

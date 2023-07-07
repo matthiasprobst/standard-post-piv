@@ -1,17 +1,20 @@
+import h5rdmtoolbox as h5tbx
 import numpy as np
 from typing import List
 
 
 class MaskSeeder:
     """Class to generate seeding points based on a mask input"""
-    __slots__ = ('mask', 'n', 'min_dist', 'ny', 'nx')
+    __slots__ = ('mask', 'n', 'min_dist', 'ny', 'nx', 'x', 'y')
 
-    def __init__(self, mask, n, min_dist):
+    def __init__(self, mask, x, y, n, min_dist):
         assert mask.ndim == 2
         self.mask = mask
         self.ny, self.nx = mask.shape
         self.n = n
         self.min_dist = min_dist
+        self.x = x
+        self.y = y
 
     def is_valid(self, point):
         """validates the given point. It must be surrounded by unmasked
@@ -41,7 +44,6 @@ class MaskSeeder:
         unmasked_indices = np.where(self.mask == ref)
 
         num_unmasked = len(unmasked_indices[0])
-        print(num_unmasked)
 
         if num_unmasked == self.n:
             raise ValueError("No unmasked locations found.")
@@ -65,13 +67,13 @@ class MaskSeeder:
                 seed_indices.append(point)
                 n_seeded += 1
 
-        return seed_indices
+        return [(self.x[a], self.y[b]) for a, b in seed_indices]
 
 
-def generate_seeding_points(piv_mask, n, min_dist):
+def generate_monitor_points(piv_mask, x, y, n, min_dist):
     """Generate seeding pts"""
     assert piv_mask.ndim == 2
-    seeder = MaskSeeder(piv_mask, n, min_dist)
+    seeder = MaskSeeder(piv_mask, x, y, n, min_dist)
     seeding_points = seeder.generate()
     return seeding_points
 
@@ -89,3 +91,12 @@ def find_nearest_index(arr, target_value) -> int:
 def find_nearest_indices(arr, target_values) -> List[int]:
     """Find the indices of the nearest values in x to the target values"""
     return [find_nearest_index(arr, t) for t in target_values]
+
+
+def get_dataset_by_standard_name(filename, sn, tmp_filename=None):
+    """returns lazy object. See `h5rdmtoolbox.database.lazy`.
+    Searches in original file and if none found in temporary file"""
+    res = h5tbx.FileDB(filename).find_one({'standard_name': sn}, '$dataset')
+    if res is None and tmp_filename is not None:
+        res = h5tbx.FileDB(tmp_filename).find_one({'standard_name': sn})
+    return res

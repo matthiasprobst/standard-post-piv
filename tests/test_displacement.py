@@ -6,7 +6,4 @@ piv_filename = r'C:/Users/da4323/Documents/Promotion/Measurements/PIV/Feldle/M3/
 report = Report(piv_filename)
 # report.displacement.x[()].sel(time=[0, 1]).pivplot.contourf()
 
-with h5tbx.File(piv_filename, 'r+') as h5:
-    u = h5.u[:, :, :]
-u[0, :, :].plot()
-print(repr(u))
+report.velocity.inplane_vector_in_moving_frame

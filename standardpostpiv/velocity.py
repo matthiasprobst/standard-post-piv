@@ -3,6 +3,17 @@ import xarray as xr
 from .displacement import Displacement
 
 
+class MovigReferenceFrameVelocity:
+    identifier = {'u': 'x_velocity_of_moving_frame',
+                  'v': 'y_velocity_of_moving_frame',
+                  'w': 'z_velocity_of_moving_frame',
+                  }
+
+    def __init__(self, filename):
+        self.filename = filename
+
+
+
 class Velocity(Displacement):
     """Report velocity interface class"""
     identifier = {'u': 'x_velocity',
@@ -11,6 +22,10 @@ class Velocity(Displacement):
                   'mag_inplane': 'inplane_velocity',
                   'mag': 'magnitude_of_velocity',
                   }
+
+    @property
+    def moving_reference_frame(self):
+        return
 
     @property
     def z(self):
@@ -24,7 +39,7 @@ class Velocity(Displacement):
         if mag_inplane is None:
             return self.compute_inplane_velocity().inplane_velocity_magnitude
 
-        mag = self.inplane_velocity[:]
+        mag = mag_inplane[:]
         flags = self.flags[:]
         return xr.Dataset(dict(u=self.x, v=self.y, mag=mag, flags=flags))
 
@@ -42,6 +57,17 @@ class Velocity(Displacement):
         mag = self.inplane_velocity[:]
         flags = self.flags[:]
         return xr.Dataset(dict(u=u, v=v, mag=mag, flags=flags))
+
+    @property
+    def inplane_vector_in_moving_frame(self):
+        u = self.x[:].piv.in_moving_frame()
+        v = self.y[:].piv.in_moving_frame()
+        import numpy as np
+        mag = (np.sqrt(u.pint.quantify() ** 2 + v.pint.quantify() ** 2)).pint.dequantify()
+
+        mag.attrs['standard_name'] = 'magnitude_of_velocity_in_moving_frame'
+        ds = xr.Dataset(dict(u=u, v=v, mag=mag))
+        return ds
 
     @property
     def mean_inplane_vector(self):
