@@ -1,5 +1,6 @@
 import h5rdmtoolbox as h5tbx
 import numpy as np
+from IPython.display import display, Markdown
 from typing import List
 
 
@@ -100,3 +101,23 @@ def get_dataset_by_standard_name(filename, sn, tmp_filename=None):
     if res is None and tmp_filename is not None:
         res = h5tbx.FileDB(tmp_filename).find_one({'standard_name': sn})
     return res
+
+
+def display_as_badges(data, inline:bool=False,color_info={'__default': 'green',
+                                        'contact': 'red',
+                                        'type': 'green',
+                                        'pivtype': 'blue',
+                                        'software': 'blue',
+                                        'pivmethod': 'lightgreen'}):
+    def _get_badge_color(_k):
+        if _k in color_info:
+            return color_info[_k]
+        return color_info['__default']
+
+    _shield_strings = []
+    for k, v in data.items():
+        _str = f'{v}'.replace(' ', '_').replace('-', '--')
+        _shield_strings.append(f'![nbviewer](https://img.shields.io/badge/{k}-{_str}-{_get_badge_color(k)}.svg)')
+    if inline:
+        return Markdown(' '.join(_shield_strings))
+    display(Markdown('<br>'.join(_shield_strings)))

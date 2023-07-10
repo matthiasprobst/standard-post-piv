@@ -8,9 +8,10 @@ class VelocityPlots(NotebookSection):
     def get_cells(self):
         """write the cells"""
         # --- mean velocities ----
-        cells = [markdown_cells(['## Velocity Plots', ])]
+        # cells = [markdown_cells(['## Velocity Plots', ])]
+        cells = []
 
-        if self.notebook.report.velocity.is_snapshot():
+        if self.notebook.report.is_snapshot():
             cells.append(markdown_cells('### In-plane velocity'))
             cells.append(
                 code_cells(["report.velocity.inplane_vector.ssp.interactive_contourf_and_quiver(every=(2, 2))"]))
@@ -18,7 +19,8 @@ class VelocityPlots(NotebookSection):
         else:
             cells.append(markdown_cells('### Mean in-plane velocity'))
             cells.append(
-                code_cells(["report.velocity.inplane_vector.sel(time=0).ssp.interactive_contourf_and_quiver(every=(2, 2))", ]))
+                code_cells(
+                    ["report.velocity.inplane_vector.sel(time=0).ssp.interactive_contourf_and_quiver(every=(2, 2))", ]))
             cells.append(code_cells("report.velocity.inplane_velocity.ssp.stats()"))
 
         # --- monitor/line plots ---

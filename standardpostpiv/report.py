@@ -2,8 +2,11 @@
 
 The report is generated based on a certain convention!
 """
-
+import h5rdmtoolbox as h5tbx
 import logging
+import pandas as pd
+import pathlib
+from typing import Union, Dict
 
 from . import monitor_points
 from . import piv_vector
@@ -41,25 +44,121 @@ class PIVReport:
     >>> piv_report.velocity.isel(time=7, z=3)
     """
 
-    def __init__(self, filename):
-        self.filename = filename
+    def __init__(self, filename: Union[str, pathlib.Path]):
+        self.filename = pathlib.Path(filename)
         self.standard_name_identifier = {'flags': 'piv_flags'}
         self._monitor_points = monitor_points.MonitorPoints(self.coordinates.x,
                                                             self.coordinates.y)
+        self.attributes = {'software': 'software',
+                           'contact': 'contact',
+                           }
+        self._attrs = None
+
+    def __getattr__(self, item):
+        if item in self.attributes:
+            return self.attrs[self.attributes[item]]
+        return super().__getattribute__(item)
+
+    @property
+    def piv_method(self):
+        pm = utils.get_dataset_by_standard_name(self.filename, 'piv_method')
+        if pm is None:
+            return 'unknown'
+        return pm[()]
+
+    @property
+    def attrs(self) -> Dict:
+        """Return the root attributes of the HDF5 file as dictionary"""
+        if self._attrs is None:
+            with h5tbx.File(self.filename) as h5:
+                self._attrs = dict(h5.attrs)
+        return self._attrs
+
+    @property
+    def piv_type(self) -> str:
+        """Return the PIV type of the measurement"""
+        if self.is_2D2C():
+            piv_dtype = '2D2C'
+        elif self.is_2D3C():
+            piv_dtype = '2D3C'
+        else:
+            piv_dtype = '?D?C'
+
+        if self.is_plane():
+            piv_dtype += ' (Plane)'
+        elif self.is_multiplane():
+            piv_dtype += ' (Multi-Plane)'
+        elif self.is_snapshot():
+            piv_dtype += ' (Snapshot)'
+        else:
+            piv_dtype += ' (Unknown)'
+        return piv_dtype
+
+    @property
+    def notebook(self):
+        """return a notebook object allowing to write a standard report on this PIV file"""
+        from .notebook.notebook import PIVReportNotebook
+        return PIVReportNotebook(self)
+
+    @property
+    def n_planes(self):
+        if self.coordinates.z.ndim == 0:
+            return 1
+        return self.coordinates.z.size
+
+    @property
+    def n_timesteos(self):
+        if self.coordinates.time.ndim == 0:
+            return 1
+        return self.coordinates.time.size
+
+    @property
+    def shape(self):
+        """return the shape of the PIV data"""
+        return self.velocity.x.shape
+
+    def is_multiplane(self):
+        """check if the PIV data is multiplane"""
+        return self.coordinates.z[()].ndim == 1 and self.coordinates.time.ndim == 1
+
+    def is_2D2C(self):
+        """check if the PIV data is 2D2C"""
+        try:
+            self.velocity.z
+            return False
+        except ValueError:
+            return True
+
+    def is_2D3C(self):
+        """check if the PIV data is 2D3C"""
+        return not self.is_2D2C()
 
     @property
     def coordinates(self):
-        """PIV coordinates"""
+        """PIV coordinates (spatial and temporal)
+
+        Available attributes:
+            x: physical x-coordinate
+            y: physical y-coordinate
+            z: physical z-coordinate
+            ix: pixel x-coordinate
+            iy: pixel y-coordinate
+            time: time coordinate
+        """
         return piv_vector.PIVVector(self.filename, {'x': 'x_coordinate',
                                                     'y': 'y_coordinate',
-                                                    'z': 'z_coordinate'})
+                                                    'z': 'z_coordinate',
+                                                    'ix': 'x_pixel_coordinate',
+                                                    'iy': 'y_pixel_coordinate',
+                                                    'time': 'time'})
 
     @property
     def displacement(self):
         """PIV displacement"""
         return piv_vector.PIVVector(self.filename, {'x': 'x_displacement',
                                                     'y': 'y_displacement',
-                                                    'z': 'z_displacement'})
+                                                    'z': 'z_displacement',
+                                                    'mag': 'magnitude_of_velocity'})
 
     @property
     def velocity(self):
@@ -82,6 +181,47 @@ class PIVReport:
     def monitor_points(self):
         return self._monitor_points
 
+    def is_snapshot(self) -> bool:
+        return self.coordinates.z.ndim == 0 and self.coordinates.time.ndim == 0
+
+    def is_plane(self) -> bool:
+        return self.coordinates.z.ndim == 0 and self.coordinates.time.ndim == 1
+
+    def is_multiplane(self) -> bool:
+        return self.coordinates.z.ndim == 1 and self.coordinates.time.ndim == 1
+
+    def final_interrogation_window_size(self) -> dict:
+        """final interrogation window size"""
+        x_fiwsize = utils.get_dataset_by_standard_name(
+            self.filename, 'x_final_interrogation_window_size')
+        y_fiwsize = utils.get_dataset_by_standard_name(
+            self.filename, 'y_final_interrogation_window_size')
+        return {'x': x_fiwsize[()],
+                'y': y_fiwsize[()]}
+
+    @property
+    def final_interrogation_window(self):
+        return piv_vector.PIVNDData(self.filename, {'x': 'x_final_interrogation_window_size',
+                                                    'y': 'y_final_interrogation_window_size'},
+                                    return_lazy=False)
+
+    @property
+    def final_interrogation_window_overlap(self):
+        return piv_vector.PIVNDData(self.filename, {'x': 'x_final_interrogation_window_overlap_size',
+                                                    'y': 'y_final_interrogation_window_overlap_size'},
+                                    return_lazy=False)
+
+    def info(self) -> pd.Series:
+        """return general information about the file"""
+        return pd.Series({'contact': self.contact,
+                          'software': self.software,
+                          'pivtype': self.piv_type,
+                          'pivmethod': self.piv_method,
+                          'final_iw_size': [int(self.final_interrogation_window.x),
+                                            int(self.final_interrogation_window.y)],
+                          'final_ov_size': [int(self.final_interrogation_window_overlap.x),
+                                            int(self.final_interrogation_window_overlap.y)],
+                          })
 # class Report(ReportItem):
 #     """Report class"""
 #
@@ -222,10 +362,7 @@ class PIVReport:
 #     def add_section(self, section):
 #         self._sections.append(section(self))
 #
-#     @property
-#     def software(self):
-#         with h5tbx.File(self.filename) as h5:
-#             return h5.attrs['software']
+
 #
 #     def info(self):
 #         """return general information about the file"""
@@ -241,17 +378,7 @@ class PIVReport:
 #                                             int(self.y_final_interrogation_window_overlap_size.values)],
 #                           })
 #
-#     @property
-#     def piv_method(self):
-#         pm = self.get_dataset_by_standard_name('piv_method')
-#         if pm is None:
-#             return 'unknown'
-#         return pm[()]
-#
-#     @property
-#     def contact(self):
-#         with h5tbx.File(self.filename) as h5:
-#             return h5.attrs['contact']
+
 #
 #     @property
 #     def displacement(self):

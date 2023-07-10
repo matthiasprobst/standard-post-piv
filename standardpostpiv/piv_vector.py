@@ -49,12 +49,27 @@ class PIVVectorMagnitude:
         return self._compute()
 
 
-class PIVVector:
-    __slots__ = ('filename', 'standard_name_identifier')
+class PIVNDData:
+    __slots__ = ('filename', 'standard_name_identifier', '_return_lazy')
 
-    def __init__(self, filename, standard_name_identifier):
+    def __init__(self, filename, standard_name_identifier, return_lazy=True):
         self.filename = filename
         self.standard_name_identifier = standard_name_identifier
+        self._return_lazy = return_lazy
+
+    def __getattr__(self, item):
+        if item in self.standard_name_identifier:
+            h5ds = utils.get_dataset_by_standard_name(self.filename, self.standard_name_identifier[item])
+            if h5ds is None:
+                raise ValueError(f'No dataset with standard name {self.standard_name_identifier[item]} found in file')
+            if self._return_lazy:
+                return h5ds
+            else:
+                return h5ds[()]
+        return self.__getattribute__(item)
+
+
+class PIVVector(PIVNDData):
 
     @property
     def mag(self):
@@ -65,11 +80,3 @@ class PIVVector:
     # def compute_magnitude(self, store_in_file=False):
     #     """Compute the magnitude of the vector field and store it in a temporary HDF5 file quick access at a later
     #     time. If store_in_file is True, the magnitude is written to the file"""
-
-    def __getattr__(self, item):
-        if item in self.standard_name_identifier:
-            h5ds = utils.get_dataset_by_standard_name(self.filename, self.standard_name_identifier[item])
-            if h5ds is None:
-                raise ValueError(f'No dataset with standard name {self.standard_name_identifier[item]} found in file')
-            return h5ds
-        return self.__getattribute__(item)

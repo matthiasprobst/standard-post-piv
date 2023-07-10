@@ -1,13 +1,9 @@
-from .cells import markdown_cells, code_cells
-from .core import NotebookSection
+codecell_mean_vel_mag = """vel_mag = report.velocity.mag[()]
+    
+print(f'Mean velocity magnitude: {vel_mag.mean():f} {vel_mag.units}')"""
 
 
-class StatisticsSection(NotebookSection):
-    """Title section of the report"""
-
-    def get_cells(self):
-        """write the cells"""
-        return [markdown_cells(['## Statistics', ]),
-                code_cells(["inplane_vector_stats = report.velocity.inplane_vector.ssp.stats()",
-                            "print('Statistics of inplane velocity vector:')",
-                            "inplane_vector_stats"]), ]
+def add_section(parent_section):
+    section = parent_section.add_section('Statistics', 'statistics')
+    section.add_cell(codecell_mean_vel_mag, 'code')
+    return section

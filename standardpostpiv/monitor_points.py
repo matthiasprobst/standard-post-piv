@@ -42,6 +42,8 @@ class MonitorPoints:
         self._ipoints = []
         self._manual_set = None
 
+        self._current_index = 0
+
     def __repr__(self):
         if self._manual_set is None:
             return f'<Monitor Points n={self.__len__()}>'
@@ -52,12 +54,28 @@ class MonitorPoints:
     def __len__(self):
         return len(self._ipoints)
 
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        if self._current_index < self.__len__():
+            point = self.points[self._current_index]
+            self._current_index += 1
+            return point
+        else:
+            self._current_index = 0
+            raise StopIteration()
+
     @property
     def points(self):
         """Return points in physical coordinates"""
         if self.__len__() == 0:
             raise ValueError('No points available')
         return [(self.x[ix], self.y[iy]) for ix, iy in self._ipoints]
+
+    @property
+    def indices(self):
+        return self._ipoints
 
     def plot(self, mask, ax=None, **kwargs):
         if ax is None:

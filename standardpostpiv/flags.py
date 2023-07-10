@@ -24,3 +24,7 @@ def explain_flags(flag, flag_meaning) -> List[str]:
     if isinstance(flag, np.ndarray):
         return [explain_flags(f, flag_meaning) for f in flag.tolist()]
     return get_flag_names(flag, flag_meaning)
+
+
+def explain_flag(flag, flag_meaning):
+    return explain_flags(flag, flag_meaning)[0]

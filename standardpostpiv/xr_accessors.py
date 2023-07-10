@@ -1,17 +1,16 @@
-import re
-import warnings
-
 import h5rdmtoolbox as h5tbx
 import numpy as np
 # noinspection PyUnresolvedReferences
 import pint_xarray
+import re
+import warnings
 import xarray as xr
-from typing import Union
+from typing import Union, Tuple
 
 from standardpostpiv import get_config
 # noinspection PyUnresolvedReferences
 from . import plotting, statistics, standardplots
-from .flags import explain_flags
+from .flags import explain_flags, get_flag_names
 
 
 def calc_dwdz(dudx, dvdy):
@@ -181,10 +180,57 @@ class PivDataArrayAccessor:
 
     @property
     def flags(self):
+        """Either this data array is flag array or piv flags
+        are in the coordinates"""
+        if self._obj.attrs.get('standard_name', None) == 'piv_flags':
+            return self._obj
         for k, v in self._obj.coords.items():
             if v.attrs['standard_name'] == 'piv_flags':
                 return v
-        return None
+        raise KeyError(f'No flag data found in this dataset: {self._obj.name}')
+
+    def get_flag_meaning(self):
+        """Determine the flag meaning from the attributes"""
+        flag_meaning = self.flags.attrs.get('flag_meaning', None)
+        if flag_meaning is None:
+            warnings.warn('No flag meanings found for this dataset. This method can only be called on '
+                          'complete PIV flag datasets.')
+            return None
+        return {int(k): v for k, v in flag_meaning.items()}
+
+    def explain_flag(self, flag: int):
+        """Give a short explanation of the flag"""
+        flag_meaning = self.get_flag_meaning()
+        if flag_meaning is None:
+            raise ValueError(f'Cannot explain flag because no flag meaning found. Call thi method only on '
+                             f'PIV flag datasets.')
+        return get_flag_names(int(flag), flag_meaning)
+
+    def get_flag_from_name(self, *flag_names) -> int:
+        flag_name_idx = {v: i for i, v in self.get_flag_meaning().items()}
+        return np.sum([flag_name_idx[n.upper()] for n in flag_names])
+
+    def get(self, *flags: Tuple[int, str]) -> xr.DataArray:
+        """Mask where data is unequal to passed flag"""
+        _flags = []
+        for flag in flags:
+            if isinstance(flag, str):
+                _flags.append(self.get_flag_from_name(flag))
+            elif isinstance(flag, int):
+                _flags.append(flag)
+            else:
+                raise ValueError(f'Flag must be either int or str, not {type(flag)}')
+
+        return self._obj.where(self.flags & np.sum(_flags))
+
+    def compute_valid_detection_probability(self) -> float:
+        """Return the valid detection probability"""
+        flags = self.flags[()]
+        return int(np.sum(flags == 1)) / np.count_nonzero(flags.piv.get(1))
+
+    def compute_vdp(self) -> float:
+        """alias for valid_detection_probability"""
+        return self.compute_valid_detection_probability()
 
     def flag_where(self, flag):
         return self._obj.where(self.flags & flag)

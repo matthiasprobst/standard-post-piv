@@ -46,6 +46,12 @@ class NotebookCells:
         cells.lines = lines
         return cells
 
+    def is_markdown(self):
+        return self.ctype == CellType.MARKDOWN
+
+    def is_code(self):
+        return self.ctype == CellType.CODE
+
     def make(self):
         """return a valid notebook cell"""
         if self.ctype == CellType.MARKDOWN:
