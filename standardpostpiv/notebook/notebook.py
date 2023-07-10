@@ -1,7 +1,9 @@
 import nbformat as nbf
+import pathlib
 
 from .sections.cells import markdown_cells, code_cells, NotebookCells
 from .toc import generate_toc_html
+from .. import core_logger
 
 
 class Section:
@@ -76,11 +78,12 @@ class Section:
 
 
 class PIVReportNotebook:
-    __slots__ = ('report', 'sections')
+    __slots__ = ('report', 'sections', 'notebook_filename')
 
     def __init__(self, report):
         self.sections = []
         self.report = report
+        self.notebook_filename = None
 
         # create Title cell
         title_section = self.add_section('PIV Report', 'piv-report')
@@ -98,9 +101,32 @@ class PIVReportNotebook:
         return section
 
     def create(self,
+               target_folder: pathlib.Path = None,
+               execute_notebook: bool = False,
+               notebook_filename: pathlib.Path = None,
+               overwrite: bool = False,
+               inplace: bool = False,
+               to_html: bool = False,
+               to_pdf: bool = False,
+               # available pre-defined sections:
                overview: bool = True,
                statistics: bool = True,
                convergence: bool = True, ):
+
+        if target_folder is None:
+            target_folder = self.report.filename.parent
+        else:
+            target_folder = pathlib.Path(target_folder)
+
+        target_folder.mkdir(parents=True, exist_ok=True)
+
+        if notebook_filename is None:
+            notebook_filename = target_folder / f'{self.report.filename.stem}_standardpostpiv_standard_report.ipynb'
+
+        if notebook_filename.exists() and not overwrite:
+            raise FileExistsError(f'Notebook file {notebook_filename} already exists')
+
+        self.notebook_filename = notebook_filename
 
         root_section = self.sections[0]
 
@@ -132,6 +158,12 @@ class PIVReportNotebook:
 
         nbf.write(notebook, str('test.ipynb'))
 
+        if execute_notebook:
+            core_logger.debug(f'Executing the notebook: {notebook_filename}')
+            self.execute(inplace=inplace,
+                         to_html=to_html,
+                         to_pdf=to_pdf)
+
     def _get_table_of_content_info(self):
         _toc_data = []
         for section in self.sections:
@@ -141,37 +173,3 @@ class PIVReportNotebook:
     def _generate_toc_cell(self):
         html_string = generate_toc_html(self._get_table_of_content_info())
         return markdown_cells(html_string)
-
-
-class PIVReportNotebookSection(Section):
-
-    def __init__(self, title, label=None, level=1, report=None):
-        if report is None:
-            raise ValueError('report must be provided')
-        self.title = title
-        self.sections = []
-        self._cells = []
-        super().__init__(level, report)
-
-    @property
-    def cells(self):
-        return self._cells
-
-    def __repr__(self):
-        return f'<Section title="{self.title}", n_cells={len(self)}>'
-
-    def __len__(self):
-        return len(self._cells)
-
-    def add_cell(self, cell, cell_type: str = None):
-        if cell_type is None and isinstance(cell, NotebookCells):
-            self._cells.append(cell)
-        elif cell_type == 'markdown':
-            self._cells.append(markdown_cells(cell))
-        elif cell_type == 'code':
-            self._cells.append(code_cells(cell))
-        else:
-            raise TypeError(f'Unknown cell type: {cell_type}')
-
-    def _make_title(self):
-        return '#' * self.level + f' {self.title}'

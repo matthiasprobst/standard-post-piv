@@ -50,7 +50,6 @@ def generate_toc_html(section_data):
         toc += "</ul>" * current_indentation
         return toc
 
-    print('data: ', section_data)
     TOC_HTML = STYLE_HTML + f"""<div class="dropdown-toc">
       <details open>
         <summary>Table of Contents</summary>
