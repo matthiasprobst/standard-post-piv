@@ -49,6 +49,18 @@ class PIVVectorMagnitude:
         return self._compute()
 
 
+class HDFXrDatasetInterface:
+
+    def __init__(self, hdf_datasets):
+        self._hdf_datasets = hdf_datasets
+
+    def __getitem__(self, item):
+        data_vars = {ds.basename: ds.__getitem__(item) for name, ds in self._hdf_datasets.items()}
+        for dv in data_vars.values():
+            assert isinstance(dv, xr.DataArray)
+        return xr.Dataset(data_vars)
+
+
 class PIVNDData:
     __slots__ = ('filename', 'standard_name_identifier', '_return_lazy')
 
@@ -56,6 +68,11 @@ class PIVNDData:
         self.filename = filename
         self.standard_name_identifier = standard_name_identifier
         self._return_lazy = return_lazy
+
+    def __getitem__(self, name):
+        if isinstance(name, tuple):
+            return self._get_xr_dataset(*name)
+        return self.__getattr__(name)
 
     def __getattr__(self, item):
         if item in self.standard_name_identifier:
@@ -67,6 +84,12 @@ class PIVNDData:
             else:
                 return h5ds[()]
         return self.__getattribute__(item)
+
+    def _get_xr_dataset(self, *names):
+        for name in names:
+            if name not in self.standard_name_identifier:
+                raise ValueError(f'{name} not a valid standard name identifier for this object')
+        return HDFXrDatasetInterface({name: self[name] for name in names})
 
 
 class PIVVector(PIVNDData):

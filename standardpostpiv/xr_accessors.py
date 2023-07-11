@@ -229,7 +229,8 @@ class PivDataArrayAccessor:
         return int(np.sum(flags == 1)) / np.count_nonzero(flags.piv.get(1))
 
     def compute_vdp(self) -> float:
-        """alias for valid_detection_probability"""
+        """Compute the Vector Detection Probability (VDP).
+        """
         return self.compute_valid_detection_probability()
 
     def flag_where(self, flag):
@@ -344,7 +345,6 @@ class PivPlotAccessor:
 
     def contourf(self, flag=1, **kwargs) -> None:
         """Call contourf on the dataset. Expected is to have two items, 'flags' and the data variable."""
-        print(kwargs['cmap'])
         data_vars = list(self._obj.data_vars)
         data_vars.remove('flags')
         if len(data_vars) != 1:

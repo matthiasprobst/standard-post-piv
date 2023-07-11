@@ -103,12 +103,12 @@ def get_dataset_by_standard_name(filename, sn, tmp_filename=None):
     return res
 
 
-def display_as_badges(data, inline:bool=False,color_info={'__default': 'green',
-                                        'contact': 'red',
-                                        'type': 'green',
-                                        'pivtype': 'blue',
-                                        'software': 'blue',
-                                        'pivmethod': 'lightgreen'}):
+def display_as_badges(data, inline: bool = False, color_info={'__default': 'green',
+                                                              'contact': 'red',
+                                                              'type': 'green',
+                                                              'pivtype': 'blue',
+                                                              'software': 'blue',
+                                                              'pivmethod': 'lightgreen'}):
     def _get_badge_color(_k):
         if _k in color_info:
             return color_info[_k]
@@ -117,7 +117,14 @@ def display_as_badges(data, inline:bool=False,color_info={'__default': 'green',
     _shield_strings = []
     for k, v in data.items():
         _str = f'{v}'.replace(' ', '_').replace('-', '--')
-        _shield_strings.append(f'![nbviewer](https://img.shields.io/badge/{k}-{_str}-{_get_badge_color(k)}.svg)')
+        if '%' in _str:
+            _str = _str.replace('%', '%25')
+        badge_str = f'![nbviewer](https://img.shields.io/badge/{k}-{_str}-{_get_badge_color(k)}.svg)'
+        if isinstance(v, str):
+            if v.startswith('https://') or v.startswith('www.'):
+                badge_str = f'[{badge_str}]({v})'
+        print(badge_str)
+        _shield_strings.append(badge_str)
     if inline:
         return Markdown(' '.join(_shield_strings))
     display(Markdown('<br>'.join(_shield_strings)))

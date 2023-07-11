@@ -21,7 +21,7 @@ pip install standardpostpiv
 
 ## Examples
 
-### Accessing velocity data
+### 1.0 Accessing velocity data
 
 ```python
 import standardpostpiv as spp
@@ -33,6 +33,16 @@ u_vel = report.velocity.x.sel(time=10, z=2)
 
 # get the magnitude of the velocity at time approx. to 3.12s:
 mag_vel = report.velocity.magnitude.sel(time=3.12, method='nearest')
+```
+#### 1.1 Velocity in moving frame of reference
+Use the xr-accessor `piv` on the sliced data (here x-velocity) and call `in_moving_frame()`. 
+The relative velocity (velocity in moving frame) is computed:
+```python
+import standardpostpiv as spp
+
+report = spp.PIVReport('path/to/file.hdf')
+
+urel = report.velocity.x[()].piv.in_moving_frame()
 ```
 
 ### Get scalar PIV variables:

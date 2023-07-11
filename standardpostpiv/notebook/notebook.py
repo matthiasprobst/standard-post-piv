@@ -1,8 +1,10 @@
 import nbformat as nbf
+import numpy as np
 import pathlib
 
+from . import sections as ntb_sections
 from .sections.cells import markdown_cells, code_cells, NotebookCells
-from .toc import generate_toc_html
+from .toc import generate_toc_html, USECHAPTER
 from .. import core_logger
 
 
@@ -19,8 +21,14 @@ class Section:
     def __repr__(self):
         return f'<Section title="{self.title}", n_sections={len(self.sections)}, n_cells={len(self.cells)}>'
 
-    def _make_title(self):
-        return '#' * self.level + f' {self.title}'
+    def _make_title(self, level_numbers):
+        use_level = self.level - USECHAPTER
+        if use_level > 0:
+            level_numbers[use_level - 1] += 1
+            level_numbers[use_level:] = 0
+            section_num_str = '.'.join([str(_level) for _level in level_numbers[:use_level]])
+            self.title = f'{section_num_str} {self.title}'
+        return '#' * self.level + f' {self.title}', level_numbers
 
     def add_section(self, title, label=None, level=None):
         if level is None:
@@ -42,13 +50,16 @@ class Section:
     def __getitem__(self, item):
         return self.sections[item]
 
-    def get_cells(self, cells):
+    def get_cells(self, cells, level_numbers):
+
         if not self.cells:
             return []
+
+        _title, level_numbers = self._make_title(level_numbers)
         if self.label is None:
-            title_cell = markdown_cells(f'{self._make_title()}')
+            title_cell = markdown_cells(f'{_title}')
         else:
-            title_cell = markdown_cells(f'{self._make_title()} <a id="piv-{self.label}"></a>')
+            title_cell = markdown_cells(f'{_title} <a id="piv-{self.label}"></a>')
 
         if self.cells[0].is_markdown():
             # combine the title and the first markdown cell
@@ -61,9 +72,9 @@ class Section:
             cells.append(cell.make())
 
         for section in self.sections:
-            cells = section.get_cells(cells)
+            cells, level_numbers = section.get_cells(cells, level_numbers)
 
-        return cells
+        return cells, level_numbers
 
     def get_toc(self, toc=None):
         if toc is None:
@@ -109,9 +120,12 @@ class PIVReportNotebook:
                to_html: bool = False,
                to_pdf: bool = False,
                # available pre-defined sections:
-               overview: bool = True,
-               statistics: bool = True,
-               convergence: bool = True, ):
+               sections={'overview': True,
+                         'statistics': True,
+                         'convergence': True,
+                         'mean_velocity': True,
+                         'mean_velocity_in_moving_frame': True,
+                         'misc': True}):
 
         if target_folder is None:
             target_folder = self.report.filename.parent
@@ -131,26 +145,33 @@ class PIVReportNotebook:
         root_section = self.sections[0]
 
         # add sections:
-        if overview:
-            from .sections.overview import add_section
-            new_section = add_section(root_section)
-        if statistics:
-            from .sections.statistics import add_section
-            new_section = add_section(root_section)
-        if convergence:
-            from .sections.convergence import add_section
-            if statistics:
-                new_section = add_section(new_section)
+        if sections['overview']:
+            new_section = ntb_sections.overview.add_section(root_section)
+        if sections['statistics']:
+            new_section = ntb_sections.statistics.add_section(root_section)
+        if sections['convergence']:
+            if sections['statistics']:
+                new_section = ntb_sections.convergence.add_section(new_section)
             else:
-                new_section = add_section(root_section)
+                new_section = ntb_sections.convergence.add_section(root_section)
+        if sections['mean_velocity']:
+            new_section = ntb_sections.mean_velocity.add_section(root_section)
+        if sections['mean_velocity_in_moving_frame']:
+            if sections['mean_velocity']:
+                new_section = ntb_sections.mean_velocity_in_moving_frame.add_section(new_section)
+            else:
+                new_section = ntb_sections.mean_velocity_in_moving_frame.add_section(root_section)
+        if sections['misc']:
+            new_section = ntb_sections.misc.add_section(root_section)
 
         assert len(root_section.cells) > 0
         # add table of contents in second cell:
-        root_section.cells.insert(1, self._generate_toc_cell())
+        _ = root_section.cells.insert(1, self._generate_toc_cell())
 
         cells = []
+        level_numbers = np.zeros(10, dtype=int)
         for section in self.sections:
-            cells = section.get_cells(cells)
+            cells, _ = section.get_cells(cells, level_numbers)
 
         notebook = nbf.v4.new_notebook()
 
