@@ -67,6 +67,8 @@ class PIVNDData:
     def __init__(self, filename, standard_name_identifier, return_lazy=True):
         self.filename = filename
         self.standard_name_identifier = standard_name_identifier
+        for k, v in self.standard_name_identifier.items():
+            setattr(self, k.replace(' ', '_'), v)
         self._return_lazy = return_lazy
 
     def __getitem__(self, name):

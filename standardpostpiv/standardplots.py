@@ -6,25 +6,14 @@
 - significance map and 2d graphs
 
 """
-import h5py
-import h5rdmtoolbox as h5tbx
+from typing import Union, List, Tuple, Dict
+
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
-from typing import Union, List, Tuple, Dict
 
 
-def plot_velocity_field(h5):
-    """plot the absolute velocity field including the vectors"""
-    if not isinstance(h5, h5py.Group):
-        with h5tbx.File(h5) as f:
-            return plot_velocity_field(f)
-
-    u = h5.find_one({'standard_name': 'x_velocity'})
-    ndim = u.ndim
-
-
-def _add_winsize_to_plot(ax, fiwsize):
+def _add_winsize_to_plot(ax, fiwsize, edgecolor='r'):
     if isinstance(fiwsize, dict):
         fiwsize = (int(fiwsize['x']), int(fiwsize['y']))
     elif isinstance(fiwsize, int):
@@ -34,7 +23,8 @@ def _add_winsize_to_plot(ax, fiwsize):
 
     if fiwsize is not None:
         if fiwsize[0] is not None and fiwsize[1] is not None:
-            rec = plt.Rectangle((-fiwsize[0] / 2, -fiwsize[1] / 2), fiwsize[0], fiwsize[1], edgecolor='k',
+            rec = plt.Rectangle((-fiwsize[0] / 2, -fiwsize[1] / 2), fiwsize[0], fiwsize[1],
+                                edgecolor=edgecolor,
                                 facecolor='none')
             ax.axes.add_patch(rec)
         else:
@@ -73,12 +63,14 @@ def xr_piv_scatter(dataset,
 
 def piv_scatter(u: Union[np.ndarray, xr.DataArray],
                 v: Union[np.ndarray, xr.DataArray],
-                fiwsize: Union[int, List[int], Tuple[int], Dict],
+                fiwsize: Union[int, List[int], Tuple[int], Dict, None] = None,
+                flags: xr.DataArray = None,
                 color='k',
+                edgecolor='r',
                 alpha=0.5,
                 marker='.',
+                s=20,
                 indicate_means: bool = True,
-                show_window_size: bool = True,
                 **kwargs):
     """
 
@@ -88,7 +80,7 @@ def piv_scatter(u: Union[np.ndarray, xr.DataArray],
         x-velocity or x-displacement
     v: Union[xr.DataArray, np.ndarray]
         y-velocity or y-displacement
-    fiwsize: Union[int, List[int], Tuple[int], Dict]
+    fiwsize: Union[int, List[int], Tuple[int], Dict, None]
         final interrogation window size in pixels or real units
     color: str
         color of the scatter plot
@@ -115,21 +107,41 @@ def piv_scatter(u: Union[np.ndarray, xr.DataArray],
     else:
         dy = v.ravel()
 
-    if isinstance(fiwsize, dict):
-        fiwsize = (int(fiwsize['x']), int(fiwsize['y']))
-    elif isinstance(fiwsize, int):
-        fiwsize = (int(fiwsize), int(fiwsize))
-    else:
-        fiwsize = tuple(map(int, fiwsize))
+    show_window_size = fiwsize is not None
 
     if ax is None:
         fig, ax = plt.subplots()
-    ax.scatter(dx, dy, color=color, alpha=alpha, marker=marker, **kwargs)
+    if flags is not None:
+        ax.scatter(u.where(flags == 1),
+                   v.where(flags == 1), marker=marker, s=s, color='k', alpha=0.5,
+                   label='active')
+        mask32 = flags & 32
+        ax.scatter(u.where(mask32).data.ravel(),
+                   v.where(mask32).data.ravel(), marker=marker, s=s, color='r', alpha=0.5,
+                   label='active+interpolated')
+        mask64 = flags & 64
+        ax.scatter(u.where(mask64).data.ravel(),
+                   v.where(mask64).data.ravel(), marker=marker, s=s, color='b', alpha=0.5,
+                   label='active+replaced')
+    else:
+        ax.scatter(dx, dy, color=color, alpha=alpha, marker=marker, **kwargs)
+
+    umean = u.mean()
+    vmean = v.mean()
 
     if show_window_size:
+
+        if isinstance(fiwsize, dict):
+            fiwsize = (int(fiwsize['x']), int(fiwsize['y']))
+        elif isinstance(fiwsize, int):
+            fiwsize = (int(fiwsize), int(fiwsize))
+        else:
+            fiwsize = tuple(map(int, fiwsize))
+
         if fiwsize is not None:
             if fiwsize[0] is not None and fiwsize[1] is not None:
-                rec = plt.Rectangle((-fiwsize[0] / 2, -fiwsize[1] / 2), fiwsize[0], fiwsize[1], edgecolor='k',
+                rec = plt.Rectangle((umean - fiwsize[0] / 2, vmean - fiwsize[1] / 2), fiwsize[0], fiwsize[1],
+                                    edgecolor=edgecolor,
                                     facecolor='none')
                 ax.axes.add_patch(rec)
             else:
@@ -138,8 +150,8 @@ def piv_scatter(u: Union[np.ndarray, xr.DataArray],
     if indicate_means:
         xlims = ax.get_xlim()
         ylims = ax.get_ylim()
-        plt.hlines(v.mean(), *xlims, linestyle='--', color='r')
-        plt.vlines(u.mean(), *ylims, linestyle='--', color='r')
+        plt.hlines(vmean, *xlims, linestyle='--', color='r')
+        plt.vlines(umean, *ylims, linestyle='--', color='r')
 
     if u_is_xr and xlabel is None:
         if 'standard_name' in u.attrs:

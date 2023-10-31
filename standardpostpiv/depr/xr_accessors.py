@@ -114,7 +114,7 @@ class PivDataArrayAccessor:
                 return True
         return False
 
-    def in_moving_frame(self, enable=True) -> xr.DataArray:
+    def in_moving_frame(self, enable=True, subtract=True) -> xr.DataArray:
         """Returns the data array in the moving frame of reference.
         For this to be possible, one coordinate with standard name containing
         moving_frame must be present.
@@ -146,7 +146,10 @@ class PivDataArrayAccessor:
             # use regex to find the moving_frame in string:
             if re.search('moving_frame', moving_frame.attrs['standard_name']):
                 # found it, return the relative values:
-                new_ds = (self._obj.pint.quantify() - moving_frame.pint.quantify()).pint.dequantify()
+                if subtract:
+                    new_ds = (self._obj.pint.quantify() - moving_frame.pint.quantify()).pint.dequantify()
+                else:
+                    new_ds = (self._obj.pint.quantify() + moving_frame.pint.quantify()).pint.dequantify()
                 new_ds.attrs['standard_name'] = self._obj.attrs['standard_name'] + '_in_moving_frame'
                 new_ds.attrs['ANCILLARY_DATASETS'].remove(k)
                 return new_ds.drop(k)

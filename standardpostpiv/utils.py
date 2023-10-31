@@ -1,7 +1,27 @@
-import h5rdmtoolbox as h5tbx
 import numpy as np
-from IPython.display import display, Markdown
-from typing import List
+import xarray as xr
+
+
+def apply_mask(da, flags, value):
+    """Apply a mask to a DataArray"""
+    if da.dims == flags.dims:
+        return da.where(~flags & value)
+    raise ValueError('Dimensions of DataArray and flag do not match')
+
+
+def compute_magnitude(*args):
+    """compute magnitude of a vector"""
+    if len(args) < 2:
+        raise ValueError('Need at least two components')
+    c = args[0] ** 2
+    for arg in args[1:]:
+        c += arg ** 2
+    return np.sqrt(c)
+
+
+def build_vector(**kwargs) -> xr.Dataset:
+    """Build a xr.Dataset from two components"""
+    return xr.Dataset({k: v[()] for k, v in kwargs.items()})
 
 
 class MaskSeeder:
@@ -40,7 +60,7 @@ class MaskSeeder:
 
         return np.all(~surrounding.values.ravel())
 
-    def generate(self, ref: bool = False):
+    def generate(self, ref: bool = False, ret_indices: bool = False):
         """generate seeding points"""
         unmasked_indices = np.where(self.mask == ref)
 
@@ -67,64 +87,6 @@ class MaskSeeder:
             if self.is_valid(point):
                 seed_indices.append(point)
                 n_seeded += 1
-
-        return [(self.x[a], self.y[b]) for a, b in seed_indices]
-
-
-def generate_monitor_points(piv_mask, x, y, n, min_dist):
-    """Generate seeding pts"""
-    assert piv_mask.ndim == 2
-    seeder = MaskSeeder(piv_mask, x, y, n, min_dist)
-    seeding_points = seeder.generate()
-    return seeding_points
-
-
-def find_nearest_index(arr, target_value) -> int:
-    """Find the index of the nearest value in x to the target value"""
-    abs_diff = np.abs(arr - target_value)
-
-    # Find the index of the minimum absolute difference
-    nearest_index = abs_diff.argmin().item()
-
-    return nearest_index
-
-
-def find_nearest_indices(arr, target_values) -> List[int]:
-    """Find the indices of the nearest values in x to the target values"""
-    return [find_nearest_index(arr, t) for t in target_values]
-
-
-def get_dataset_by_standard_name(filename, sn, tmp_filename=None):
-    """returns lazy object. See `h5rdmtoolbox.database.lazy`.
-    Searches in original file and if none found in temporary file"""
-    res = h5tbx.FileDB(filename).find_one({'standard_name': sn}, '$dataset')
-    if res is None and tmp_filename is not None:
-        res = h5tbx.FileDB(tmp_filename).find_one({'standard_name': sn})
-    return res
-
-
-def display_as_badges(data, inline: bool = False, color_info={'__default': 'green',
-                                                              'contact': 'red',
-                                                              'type': 'green',
-                                                              'pivtype': 'blue',
-                                                              'software': 'blue',
-                                                              'pivmethod': 'lightgreen'}):
-    def _get_badge_color(_k):
-        if _k in color_info:
-            return color_info[_k]
-        return color_info['__default']
-
-    _shield_strings = []
-    for k, v in data.items():
-        _str = f'{v}'.replace(' ', '_').replace('-', '--')
-        if '%' in _str:
-            _str = _str.replace('%', '%25')
-        badge_str = f'![nbviewer](https://img.shields.io/badge/{k}-{_str}-{_get_badge_color(k)}.svg)'
-        if isinstance(v, str):
-            if v.startswith('https://') or v.startswith('www.'):
-                badge_str = f'[{badge_str}]({v})'
-        print(badge_str)
-        _shield_strings.append(badge_str)
-    if inline:
-        return Markdown(' '.join(_shield_strings))
-    display(Markdown('<br>'.join(_shield_strings)))
+        if ret_indices:
+            return seed_indices
+        return [(self.x[a], self.y[b]) for b, a in seed_indices]

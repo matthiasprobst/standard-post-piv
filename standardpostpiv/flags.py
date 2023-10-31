@@ -1,30 +1,28 @@
 import numpy as np
-from typing import List
+import xarray as xr
 
 
-def get_flag_names(flag_value, flag_meaning) -> List:
-    """Return a list of flag names for a given flag value"""
-    if flag_value == 0:
-        return ['INACTIVE']
-
-    flag_names = []
-
-    for flagmeaning_value, flagmeaning_name in flag_meaning.items():
-        if flag_value & flagmeaning_value:
-            flag_names.append(flagmeaning_name)
-
-    return flag_names
+def apply_mask(da, flag):
+    """Apply a mask to a DataArray"""
+    if da.dims == flag.dims:
+        return da.where(~flag & 2)
+    raise ValueError('Dimensions of DataArray and flag do not match')
 
 
-def explain_flags(flag, flag_meaning) -> List[str]:
-    """Explain the flags"""
-    flag_meaning = {int(k): v for k, v in flag_meaning.items()}
-    if isinstance(flag, (list, tuple)):
-        return [explain_flags(f, flag_meaning) for f in flag]
-    if isinstance(flag, np.ndarray):
-        return [explain_flags(f, flag_meaning) for f in flag.tolist()]
-    return get_flag_names(flag, flag_meaning)
+def eval_flags(flag_data: xr.DataArray, dim='reltime'):
+    """Evaluate flags and return a dictionary of DataArrays
+    with the number of flags per time step"""
+    coord0 = flag_data.coords[dim]
+    nt = len(coord0)
+    flag_series = {v: xr.DataArray(name='INTERPOLATED',
+                                   dims=dim,
+                                   data=np.empty(nt).astype(int),
+                                   coords={dim: coord0}) for v in
+                   flag_data.flag_meaning.values()}
 
-
-def explain_flag(flag, flag_meaning):
-    return explain_flags(flag, flag_meaning)[0]
+    for i in range(nt):
+        nflags = {v: np.sum((flag_data.isel({dim: i}).data & int(k)).astype(bool)) for k, v in
+                  flag_data.flag_meaning.items()}
+        for k, v in nflags.items():
+            flag_series[k][i] = v
+    return flag_series

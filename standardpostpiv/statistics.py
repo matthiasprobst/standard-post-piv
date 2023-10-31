@@ -8,11 +8,13 @@ def stats(target):
     """compute stats for the target. dataset including flags is ignored"""
     if isinstance(target, xr.DataArray):
         return pd.DataFrame(
-            {target.name: {
-                'min': target.min().values,
-                'max': target.max().values,
-                'mean': target.mean().values,
-                'std': target.std().values, }
+            {
+                target.name: {
+                    'min': target.min().values,
+                    'max': target.max().values,
+                    'mean': target.mean().values,
+                    'std': target.std().values
+                }
             }
         )
     elif isinstance(target, xr.Dataset):
@@ -61,42 +63,37 @@ def next_mean(mu, n_mu, new_val):
     return (mu * n_mu + new_val) / (n_mu + 1)
 
 
-def _transpose_and_reshape_input(x, axis):
-    return x.transpose([axis, *[ax for ax in range(x.ndim) if ax != axis]]).reshape(
-        (x.shape[axis], x.size // x.shape[axis]))
-
-
-def _transpose_and_reshape_back_to_original(x, orig_shape, axis):
-    ndim = len(orig_shape)
-    transpose_order = np.zeros(ndim).astype(int)
-    transpose_order[axis] = 0
-    k = 1
-    for j in range(ndim):
-        if j != axis:
-            transpose_order[j] = k
-            k += 1
-    return x.reshape([orig_shape[axis], *[orig_shape[ax] for ax in range(ndim) if ax != axis]]).transpose(
-        transpose_order)
-
-
-def running_mean(x: np.ndarray, axis=0):
+def running_mean(x: np.ndarray, axis: int):
     """computing the running mean of an array along a given axis"""
     if axis == -1:
         axis = x.ndim
-    _x = _transpose_and_reshape_input(x, axis)
+    if axis >= x.ndim:
+        raise ValueError("Invalid axis value.")
+    if axis == 0:
+        _x = x
+    else:
+        _x = np.moveaxis(x, axis, 0)
     xm = np.zeros_like(_x)
     m = _x[0, :]
     for i in range(1, _x.shape[0]):
         m = next_mean(m, i, _x[i, :])
         xm[i, :] = m
-    return _transpose_and_reshape_back_to_original(xm, x.shape, axis)
+    if axis == 0:
+        return xm
+    return np.moveaxis(xm, 0, axis)
 
 
 def running_std(x, axis, ddof=0):
     """shape of x : nt x ndata"""
     if axis == -1:
         axis = x.ndim
-    _x = _transpose_and_reshape_input(x, axis)
+    if axis >= x.ndim:
+        raise ValueError("Invalid axis value.")
+    if axis == 0:
+        _x = x
+    else:
+        _x = np.moveaxis(x, axis, 0)
+
     x2 = _x ** 2
     std = np.zeros_like(_x)
     sum_of_x = np.sum(_x[0:ddof + 1], axis=0)
@@ -104,10 +101,26 @@ def running_std(x, axis, ddof=0):
     std[0:ddof + 1] = np.nan
     for i in range(ddof + 1, _x.shape[0]):
         sum_of_x, sum_of_x_squared, std[i, :] = next_std(sum_of_x, sum_of_x_squared, i, _x[i, :], ddof=ddof)
-    return _transpose_and_reshape_back_to_original(std, x.shape, axis)
+
+    if axis == 0:
+        return std
+    return np.moveaxis(std, 0, axis)
 
 
 def running_relative_standard_deviation(x, axis, ddof=0):
     """Computes the running relative standard deviation using the running
     mean as normalization."""
-    return running_std(x, axis, ddof) / running_mean(x, axis)
+    if axis == -1:
+        axis = x.ndim
+    if axis >= x.ndim:
+        raise ValueError("Invalid axis value.")
+    if axis == 0:
+        _x = x
+    else:
+        _x = np.moveaxis(x, axis, 0)
+
+    rrstd = running_std(_x, axis=0, ddof=ddof) / running_mean(_x, axis=0)
+
+    if axis == 0:
+        return rrstd
+    return np.moveaxis(rrstd, 0, axis)

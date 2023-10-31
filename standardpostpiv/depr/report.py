@@ -2,11 +2,12 @@
 
 The report is generated based on a certain convention!
 """
-import h5rdmtoolbox as h5tbx
 import logging
-import pandas as pd
 import pathlib
 from typing import Union, Dict
+
+import h5rdmtoolbox as h5tbx
+import pandas as pd
 
 from . import monitor_points
 from . import piv_vector
@@ -30,8 +31,36 @@ DEFAULT_REPORT_DICT = {'general': True,
                        'contour': {'mean_velocity_magnitude': True}
                        }
 
+from .utils import HDF5StandardInterface
 
-class PIVReport:
+
+class PIVReport(HDF5StandardInterface):
+    def __init__(self,
+                 hdf_filename,
+                 source_group: str = '/'):
+        super().__init__(hdf_filename=hdf_filename, source_group=source_group)
+
+    def is_2D2C(self):
+        """check if the PIV data is 2D2C"""
+        return len(self.velocity) == 2 and len(self.coordinate.shape) == 2
+
+    @property
+    def notebook(self):
+        """return a notebook object allowing to write a standard report on this PIV file"""
+        from .notebook.notebook import PIVReportNotebook
+        return PIVReportNotebook(self)
+
+    def is_snapshot(self) -> bool:
+        return self.coordinate.z.ndim == 0 and self.time.ndim == 0
+
+    def is_plane(self) -> bool:
+        return self.coordinate.z.ndim == 0 and self.time.ndim == 1
+
+    def is_multiplane(self) -> bool:
+        return self.coordinate.z.ndim == 1 and self.time.ndim == 1
+
+
+class _PIVReport:
     """PIV report class. Interface to HDF5 file providing
     a high-level interface to the results.
 
@@ -58,6 +87,9 @@ class PIVReport:
         if item in self.attributes:
             return self.attrs[self.attributes[item]]
         return super().__getattribute__(item)
+
+    def __repr__(self):
+        return f'<{self.__class__.__name__} ({self.filename})>'
 
     @property
     def piv_method(self):
@@ -107,7 +139,7 @@ class PIVReport:
         return self.coordinates.z.size
 
     @property
-    def n_timesteos(self):
+    def n_timesteps(self):
         if self.coordinates.time.ndim == 0:
             return 1
         return self.coordinates.time.size
