@@ -1,7 +1,9 @@
 import h5rdmtoolbox as h5tbx
+import pathlib
 
 
 def to_quantity(da):
+    """Convert a (0-dimensional) DataArray to a pint Quantity"""
     if da.ndim == 0:
         return h5tbx.get_ureg().Quantity(da.data, units=da.units)
     raise ValueError('DataArray must be 0D')
@@ -11,7 +13,7 @@ class StandardPIVResult:
     """Interface class to PIV results stored in a HDF5 file"""
 
     def __init__(self, hdf_filename):
-        self.hdf_filename = hdf_filename
+        self.hdf_filename = pathlib.Path(hdf_filename)
         distinct_standard_names = h5tbx.distinct(self.hdf_filename, 'standard_name')
         for dsn in distinct_standard_names:
             setattr(self, dsn, h5tbx.FileDB(self.hdf_filename).find_one({'standard_name': dsn}))

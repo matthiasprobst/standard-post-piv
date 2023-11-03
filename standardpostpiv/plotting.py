@@ -1,14 +1,13 @@
+import itertools
 import locale
-from typing import Union, List, Tuple, Dict
-
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 from scipy.stats import norm
+from typing import Union, List, Tuple, Dict
 
 from .utils import build_vector
-import itertools
 
 golden_ratio = (np.sqrt(5.0) - 1.0) / 2.0  # Aesthetic ratio (you could change this)
 golden_mean = 9 / 16  # This is suited for widescreen ppt
@@ -18,7 +17,6 @@ LATEX_TEXTWIDTH_IN = LATEX_TEXTWIDTH_MM / 25.4  # in
 
 markers = itertools.cycle(('+', '.', 'o', '*', 's', '<', '>', '^'))
 gray_colors = itertools.cycle([str(i) for i in np.linspace(0.0, 0.5, 4)])
-
 
 
 def goldenfigsize(scale, hscale=1, gr=True) -> List[float]:
@@ -176,6 +174,8 @@ class StandardAxes(plt.Axes):
 
 tight_layout = plt.tight_layout
 legend = plt.legend
+contourf = plt.contourf
+contour = plt.contour
 
 import matplotlib.projections as proj
 
@@ -209,6 +209,10 @@ def piv_scatter(u: Union[np.ndarray, xr.DataArray],
         alpha value of the scatter plot
     marker: str
         marker of the scatter plot
+    s: float
+        size of the scatter plot
+    indicate_means: bool
+        whether to indicate the mean of the vectors as a red lines
     kwargs: dict
         additional keyword arguments passed to the scatter plot
     """
@@ -234,15 +238,15 @@ def piv_scatter(u: Union[np.ndarray, xr.DataArray],
         fig, ax = subplots(1, 1, tight_layout=True)
     if flags is not None:
         ax.scatter(u.where(flags == 1),
-                   v.where(flags == 1), marker=marker, s=s, color='k', alpha=0.5,
+                   v.where(flags == 1), marker=marker, s=s, color='k', alpha=alpha,
                    label='active')
         mask32 = flags & 32
         ax.scatter(u.where(mask32).data.ravel(),
-                   v.where(mask32).data.ravel(), marker=marker, s=s, color='r', alpha=0.5,
+                   v.where(mask32).data.ravel(), marker=marker, s=s, color='r', alpha=alpha,
                    label='active+interpolated')
         mask64 = flags & 64
         ax.scatter(u.where(mask64).data.ravel(),
-                   v.where(mask64).data.ravel(), marker=marker, s=s, color='b', alpha=0.5,
+                   v.where(mask64).data.ravel(), marker=marker, s=s, color='b', alpha=alpha,
                    label='active+replaced')
     else:
         ax.scatter(dx, dy, color=color, alpha=alpha, marker=marker, **kwargs)
@@ -301,3 +305,11 @@ def piv_scatter(u: Union[np.ndarray, xr.DataArray],
 
     ax.set_aspect(aspect)
     return ax
+
+
+def get_discrete_cmap(colors: List[str]):
+    """Return a discrete colormap from a list of colors."""
+    import matplotlib.colors
+
+    # Color for False and True
+    return matplotlib.colors.ListedColormap(colors)
