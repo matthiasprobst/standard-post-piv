@@ -269,3 +269,6 @@ def agostino_pearson_test(data, axis, alpha=0.05):
     # else:
     #     print('Sample does not look Gaussian (reject H0)')
     return p > alpha
+
+
+# confidence: https://nikolh92.medium.com/confidence-intervals-in-hypothesis-testing-3dd573287d0e

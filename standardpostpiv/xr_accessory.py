@@ -32,7 +32,7 @@ class StdPIVDAAccessor:
             dim_axis += 1
         dims = self._obj.dims
 
-        attrs = self._obj.attrs
+        attrs = self._obj.attrs.copy()
         attrs.update({'standard_name': f'developing_mean_of_{self._obj.standard_name}'})
         return xr.DataArray(name=f'developing_mean_of_{self._obj.name}',
                             data=developing_mean(self._obj.values, dim_axis),

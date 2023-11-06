@@ -176,6 +176,7 @@ tight_layout = plt.tight_layout
 legend = plt.legend
 contourf = plt.contourf
 contour = plt.contour
+show = plt.show
 
 import matplotlib.projections as proj
 
