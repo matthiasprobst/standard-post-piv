@@ -1,13 +1,19 @@
 import itertools
 import locale
+import pathlib
+import subprocess
+from typing import Union, List, Tuple, Dict
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import xarray as xr
 from scipy.stats import norm
-from typing import Union, List, Tuple, Dict
 
 from .utils import build_vector
+
+__this_dir__ = pathlib.Path(__file__).parent
+MPLSTYLE_FILENAME = __this_dir__ / 'style.mplstyle'
 
 golden_ratio = (np.sqrt(5.0) - 1.0) / 2.0  # Aesthetic ratio (you could change this)
 golden_mean = 9 / 16  # This is suited for widescreen ppt
@@ -314,3 +320,69 @@ def get_discrete_cmap(colors: List[str]):
 
     # Color for False and True
     return matplotlib.colors.ListedColormap(colors)
+
+
+class StdRcParam:
+    def __init__(self, mplstyle_filename=MPLSTYLE_FILENAME):
+        self.curr_rc_params = mpl.rcParams
+        self.mplstyle_filename = mplstyle_filename
+
+    def __enter__(self):
+        curr_rc_params = mpl.rcParams
+        self.curr_rc_params = mpl.rcParams
+        plt.style.use(self.mplstyle_filename)
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        plt.rcParams.update(self.curr_rc_params)
+
+
+def savefig2svg(fig, filename, pdftex: bool = False, **kwargs) -> pathlib.Path:
+    """Save figure to svg. Optionally convert to pdf for pdftex (pdf+tex file)
+
+    Parameters
+    ----------
+    fig: plt.Figure
+        Figure to be saved
+    filename: str
+        Filename passed to fig.savefig
+    pdftex: bool
+        Whether to convert pdftex
+    kwargs: Dict
+        Optional parameters for savefig
+    """
+    filename = pathlib.Path(filename)
+    if filename.suffix != '.svg':
+        raise ValueError(f'Filename suffix must be ".svg" but is "{filename.suffix}".')
+    with StdRcParam():
+        fig.savefig(filename, **kwargs)
+        if pdftex:
+            svg2pdftex(filename)
+    return filename
+
+
+def svg2pdftex(image_filename: pathlib.Path) -> subprocess.CompletedProcess:
+    """Convert svg to pdf for pdftex
+
+    Parameters
+    ----------
+    image_filename : pathlib.Path
+        Path to the svg file
+
+    Returns
+    -------
+    subprocess.CompletedProcess
+    """
+    image_filename = pathlib.Path(image_filename)
+    assert image_filename.exists()
+    target_filename = image_filename.parent / f'{image_filename.stem}.pdf'
+    try:
+        cp = subprocess.run(
+            f'inkscapecom.com --export-filename={target_filename} --export-type=pdf --export-latex {image_filename}'.split(
+                ' ')
+        )
+    except FileNotFoundError:
+        cp = subprocess.run(
+            f'inkscape --export-filename={target_filename} --export-type=pdf --export-latex {image_filename}'.split(' ')
+        )
+    return cp
