@@ -14,7 +14,7 @@ report.add_section(displacement.section_instantaneous_velocity, level=3)
 report.add_section(monitor.points(), level=2)
 report.add_section(monitor.convergence(), level=3)
 report.add_section(monitor.line(None), level=3)
-report.add_section(normality.section_normality_check, level=2)
+# report.add_section(normality.section_normality_check, level=2)
 
 ntb = report.create(execute_notebook=True,
                     overwrite=True,
