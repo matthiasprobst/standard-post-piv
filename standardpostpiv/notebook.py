@@ -1,6 +1,6 @@
 """Main module for creating a PIV report notebook"""
 import pathlib
-from typing import Union
+from typing import Union, Dict
 
 import nbformat
 import numpy as np
@@ -44,8 +44,24 @@ class PIVReportNotebook:
         self.sections.append(section)
         return section
 
-    def execute(self, inplace=True, to_html=False, to_pdf=False):
-        """Execute the notebook and optionally save it as html or pdf"""
+    def execute(self, inplace=True, to_html=False, to_pdf=False) -> Dict:
+        """Execute the notebook and optionally save it as html or pdf
+
+        Parameters
+        ----------
+        inplace: bool
+            If True, the notebook is executed in place. Otherwise, a new notebook is created.
+        to_html: bool
+            If True, the notebook is converted to html.
+        to_pdf: bool
+            If True, the notebook is converted to pdf. Note that ioshield badges cannot be displayed in pdf.
+            An error will be raised!
+
+        Returns
+        -------
+        filenames: Dict
+            Dictionary containing the filenames of the executed notebook and the html/pdf file.
+        """
         assert self.notebook_filename.exists()
         if inplace:
             cmd = f'jupyter nbconvert --execute "{self.notebook_filename}" --inplace'
@@ -73,19 +89,28 @@ class PIVReportNotebook:
                 nbformat.write(self.notebook, f)
 
         if to_pdf:
+            pdf_filename = self.notebook_filename.parent / f'{self.notebook_filename.stem}.pdf'
             try:
                 r, _ = export(PDFExporter, self.notebook)
             except pdf.LatexFailed as e:
                 logger.error('Latex failed. Please check the log file for more information. Original error message: '
                              '{}'.format(e))
+                pdf_filename = None
             else:
-                with open(self.notebook_filename.parent / f'{self.notebook_filename.stem}.pdf', 'w') as f:
+                with open(pdf_filename, 'w') as f:
                     f.write(r)
+        else:
+            pdf_filename = None
 
         if to_html:
+            html_filename = self.notebook_filename.parent / f'{self.notebook_filename.stem}.html'
             html_data, _ = export(HTMLExporter, self.notebook)
-            with open(self.notebook_filename.parent / f'{self.notebook_filename.stem}.html', "w") as f:
+            with open(html_filename, "w") as f:
                 f.write(html_data)
+        else:
+            html_filename = None
+
+        return {'ipynb': self.notebook_filename, 'html': html_filename, 'pdf': pdf_filename}
 
         # NotebookExporter().from_notebook_node(self.notebook)
         #
@@ -107,7 +132,7 @@ class PIVReportNotebook:
                overwrite: bool = False,
                inplace: bool = False,
                to_html: bool = False,
-               to_pdf: bool = False) -> nbformat.notebooknode.NotebookNode:
+               to_pdf: bool = False) -> Dict:
         """Create the notebook and optionally execute it and save it as html or pdf
 
         Parameters
@@ -128,8 +153,8 @@ class PIVReportNotebook:
 
         Returns
         -------
-        notebook: nbformat.notebooknode.NotebookNode
-            The created notebook
+        filenames: Dict
+            Dictionary containing the filenames of the executed notebook and the html/pdf file.
 
         """
         target_folder = self.hdf_filename.parent
@@ -154,6 +179,36 @@ class PIVReportNotebook:
 
         cells = []
         level_numbers = np.zeros(10, dtype=int)
+
+        # extract all imports and insert them in a separate section at the beginning
+        import_lines = []
+        for section in self.sections:
+            iremove_cell = []
+            for icell, cell in enumerate(section.cells):
+                if cell.is_code():
+                    import_free_lines = []
+                    lines = cell.lines.split('\n')
+                    for line in lines:
+                        if 'import' in line:
+                            import_lines.append(line)
+                        else:
+                            import_free_lines.append(line)
+                    if len(import_free_lines) == 0:
+                        iremove_cell.append(icell)
+                    else:
+                        cell.lines = '\n'.join(import_free_lines)
+            for icell in iremove_cell[::-1]:
+                logger.debug(f'Removing cell {icell} because it is empty.')
+                section.cells.pop(icell)
+
+        import_section = Section('Imports', label='imports')
+        import_section.level = 2
+        import_section.add_cell('\n'.join(import_lines), 'code')
+
+        self.sections.insert(1, import_section)
+        # for section in self.sections[2:]:
+        #     section.level += 1
+
         for section in self.sections:
             cells, _ = section.get_cells(cells, level_numbers)
 
@@ -168,10 +223,10 @@ class PIVReportNotebook:
 
         if execute_notebook:
             logger.info(f'Executing the notebook: {notebook_filename}')
-            self.execute(inplace=inplace,
-                         to_html=to_html,
-                         to_pdf=to_pdf)
-        return notebook
+            return self.execute(inplace=inplace,
+                                to_html=to_html,
+                                to_pdf=to_pdf)
+        return {'ipynb': notebook_filename, 'html': None, 'pdf': None}
 
     def _get_table_of_content_info(self):
         _toc_data = []

@@ -9,7 +9,8 @@ cell2 = """res = StandardPIVResult(hdf_filename)"""
 
 mk3 = """Compute the valid detection probability (VDP):"""
 
-cell3 = """flag_series = eval_flags(res.piv_flags[()])
+cell3 = """import numpy as np
+flag_series = eval_flags(res.piv_flags[()])
 edited_vectors = np.sum([flag_series[f] for f in ('NORESULT', 'FILTERED', 'INTERPOLATED', 'REPLACED', 'MANUALEDIT')], axis=0)
 vdp = (flag_series['ACTIVE']-edited_vectors)/flag_series['ACTIVE']
 vdp.attrs['standard_name'] = 'valid_detection_probability'
@@ -18,11 +19,7 @@ vdp.attrs['units'] = ''"""
 
 mk4 = """Get a broad overview of the file:"""
 
-cell4_badge = """def to_quantity(da):
-    if da.ndim == 0:
-        return h5tbx.get_ureg().Quantity(da.data, units=da.units)
-        
-badge.display(method=res.eval_method,
+cell4_badge = """badge.display(method=res.eval_method,
               final_ws=res.final_iw_size,
               piv_dim=res.piv_dim,
               piv_type=res.piv_type,
@@ -40,7 +37,8 @@ cell4_dict = """stats = {'PIV Eval method': res.eval_method,
 from pprint import pprint
 pprint(stats)"""
 
-cell5 = """fig, axes = stdplt.subplots(1, 1, tight_layout=True)
+cell5 = """import standardpostpiv.plotting as stdplt 
+fig, axes = stdplt.subplots(1, 1, tight_layout=True)
 vdp.plot(ax=axes)"""
 
 from standardpostpiv.notebook_utils.section import Section
@@ -64,5 +62,26 @@ def _build_section(shield_badge=True):
     return _section
 
 
+# def extract_imports(section):
+#     code_cells = [c for c in section.cells if c.is_code()]
+#     import_lines = []
+#     new_cell_lines = []
+#     for cell in code_cells:
+#         lines = cell.lines.split('\n')
+#         import_free_lines = []
+#         for line in lines:
+#             if 'import' in line:
+#                 import_lines.append(line)
+#             else:
+#                 import_free_lines.append(line)
+#
+#         if len(import_free_lines) > 0:
+#             new_cell_lines.append('\n'.join(import_free_lines))
+#
+#     print(set(import_lines))
+#     return new_cell_lines
+
+
 section_with_badge = _build_section(True)
+# new_cells = extract_imports(section_with_badge)
 section_without_badge = _build_section(False)

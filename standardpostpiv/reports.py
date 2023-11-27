@@ -31,7 +31,7 @@ def get_basic_2D2C_report(hdf_filename: Union[str, pathlib.Path]):
 
     report = PIVReportNotebook(hdf_filename)
 
-    report.add_section(imports.section, level=2)
+    # report.add_section(imports.section, level=2)
     report.add_section(statistics.section_with_badge, level=2)
     report.add_section(pdfs.section, level=2)
     report.add_section(displacement.main_section, level=2)

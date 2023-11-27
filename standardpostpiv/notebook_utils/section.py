@@ -1,5 +1,6 @@
 from .cells import markdown_cells, code_cells, NotebookCells
 from .toc import USECHAPTER
+from typing import Union
 
 
 class Section:
@@ -32,7 +33,7 @@ class Section:
         self.sections.append(section)
         return section
 
-    def add_cell(self, cell, cell_type: str = None):
+    def add_cell(self, cell: Union[str, NotebookCells], cell_type: str = None):
         if cell_type is None and isinstance(cell, NotebookCells):
             self.cells.append(cell)
         elif cell_type == 'markdown':

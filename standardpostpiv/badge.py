@@ -19,6 +19,8 @@ def display(color: Union[str, List[str]], inline: bool = False, **kwargs):
         _str = f'{v}'.replace(' ', '_').replace('-', '--')
         if '%' in _str:
             _str = _str.replace('%', '%25')
+        if isinstance(v, tuple):
+            v = list(v)
         badge_str = f'![nbviewer](https://img.shields.io/badge/{k}-{_str}-{color}.svg)'
         if isinstance(v, str):
             if v.startswith('https://') or v.startswith('www.'):

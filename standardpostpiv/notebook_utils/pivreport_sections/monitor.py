@@ -40,12 +40,11 @@ def convergence():
     """Build convergence section."""
     section_convergence = Section('Convergence', label='convergence')
 
-    __cells = [markdown_cells(r"""Convergence or "significance" is judged by analyzing the evolution the running standard deviation $\sigma_r$ in relation to the running mean $\mu_r$:
-\begin{equation}
-    s = \frac{\sigma_r}{\mu_r}
-\end{equation}"""),
-               code_cells("""displacement_magnitude.standard_name"""),
-               code_cells("""displacement_magnitude.stdpiv.mean('reltime').standard_name"""),
+    __cells = [markdown_cells(r"""Convergence or "significance" is judged by analyzing the developing the running mean $\mu_d$ and 
+standard deviation $\sigma_d$. The evolution is plotted for the monitor points. Note, that the mean data is 
+normalized by the last data point."""),
+               # code_cells("""displacement_magnitude.standard_name"""),
+               # code_cells("""displacement_magnitude.stdpiv.mean('reltime').standard_name"""),
                code_cells("""fig, axes = stdplt.subplots(1, 3, figsize=(10, 3), tight_layout=True)
 
 displacement_magnitude.stdpiv.mean('reltime').plot(ax=axes[0])
@@ -77,14 +76,18 @@ for x, y in monitor_points:
     # axes[1].scatter(monitor_rrsd.reltime[-1], monitor_rrsd[-1], marker=m, color=line[0].get_color())
     axes[0].scatter(x, y, marker=m, color=line[0].get_color())
     
+    axes[0].set_title('mean mag. field')
+    axes[1].set_title('Normalized developing mean')
+    axes[2].set_title('developing std')
+    
     # data = mag_develop_std.sel(x=x, y=y, method='nearest')
     # data = data/data[-1]
     # line = data[1:].plot(color=line[0].get_color(), ax=axes[2], linestyle='--')
 
     line = norm_mag_develop_std.sel(x=x, y=y, method='nearest').plot(color=line[0].get_color(), ax=axes[2], linestyle='--')
 
-axes[1].set_ylabel('dev mean')
-axes[2].set_ylabel('dev std')"""),
+axes[1].set_ylabel('developing mean')
+axes[2].set_ylabel('developing std')"""),
                ]
 
     for cell in __cells:

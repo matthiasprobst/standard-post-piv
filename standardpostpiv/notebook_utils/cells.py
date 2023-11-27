@@ -1,4 +1,5 @@
 from enum import Enum
+
 from nbformat.v4 import new_markdown_cell, new_code_cell
 
 
@@ -32,7 +33,7 @@ class NotebookCells:
 
     Parameters
     ----------
-    type: CellType
+    ctype: CellType
         type of cells in this section
 
     """

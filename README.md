@@ -18,13 +18,13 @@ cd standardpostpiv
 pip install .
 ```
 
-### Build a standard evaluation report:
+### Run a standard pre-defined report (basic 2D2C):
 
 ```python
 import standardpostpiv as spp
 
 report = spp.get_basic_2D2C_report('piv_test_data.hdf')
-ntb = report.create(
+filenames = report.create(
     notebook_filename='piv_test_data_evaluation.ipynb',
     execute_notebook=True,
     overwrite=True,
@@ -33,5 +33,31 @@ ntb = report.create(
 )
 
 # you now got a jupyter notebook `piv_test_data_evaluation.ipynb` and
-# a html file `piv_test_data_evaluation.html`
+# an HTML file `piv_test_data_evaluation.html`
+
+# You may let python open the HTML report in web browser:
+import webbrowser
+
+webbrowser.open_new(filenames['html'])
+```
+
+### Build your own report:
+
+```python
+from .notebook import PIVReportNotebook
+from .notebook_utils.pivreport_sections import imports, statistics, pdfs, \
+    displacement, monitor
+
+
+report = PIVReportNotebook('piv_test_data.hdf')
+
+report.add_section(imports.section, level=2)
+report.add_section(statistics.section_with_badge, level=2)
+report.add_section(pdfs.section, level=2)
+report.add_section(displacement.main_section, level=2)
+report.add_section(displacement.section_mean_displacement, level=3)
+report.add_section(displacement.section_instantaneous_velocity, level=3)
+report.add_section(monitor.points(), level=2)
+report.add_section(monitor.convergence(), level=3)
+report.add_section(monitor.line(None), level=3)
 ```

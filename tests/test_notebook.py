@@ -1,7 +1,7 @@
 import standardpostpiv as spp
 
 report = spp.get_basic_2D2C_report('piv_test_data.hdf')
-ntb = report.create(
+filenames = report.create(
     notebook_filename='piv_test_data_evaluation.ipynb',
     execute_notebook=True,
     overwrite=True,
@@ -9,8 +9,10 @@ ntb = report.create(
     to_html=True,
 )
 
-# import webbrowser
-# webbrowser.open_new(r'file://C:\path\to\file.pdf')
+# open HTML report in web browser:
+import webbrowser
+
+webbrowser.open_new(filenames['html'])
 
 # from standardpostpiv.notebook import PIVReportNotebook
 #
