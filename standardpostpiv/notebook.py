@@ -1,10 +1,14 @@
 """Main module for creating a PIV report notebook"""
 import pathlib
+from typing import Union
 
 import nbformat
-import nbformat as nbf
 import numpy as np
+from nbconvert import PDFExporter, HTMLExporter
+from nbconvert.exporters import export, pdf
+from nbconvert.preprocessors import ExecutePreprocessor
 
+from .logger import logger
 from .notebook_utils.cells import markdown_cells
 from .notebook_utils.section import Section
 from .notebook_utils.toc import generate_toc_html
@@ -52,7 +56,8 @@ class PIVReportNotebook:
         elif to_pdf:
             cmd += ' --to pdf'
 
-        from nbconvert.preprocessors import ExecutePreprocessor
+        logger.debug(f'jupyter nbconvert command: {cmd}')
+
         # import nbformat
         # with open(self.notebook_filename) as f:
         #     nb = nbformat.read(f, as_version=4)
@@ -68,11 +73,19 @@ class PIVReportNotebook:
                 nbformat.write(self.notebook, f)
 
         if to_pdf:
-            from nbconvert import PDFExporter
-            from nbconvert.exporters import export
-            r, _ = export(PDFExporter, self.notebook)
-            with open(self.notebook_filename.parent / f'{self.notebook_filename.stem}.pdf', 'w') as f:
-                f.write(r)
+            try:
+                r, _ = export(PDFExporter, self.notebook)
+            except pdf.LatexFailed as e:
+                logger.error('Latex failed. Please check the log file for more information. Original error message: '
+                             '{}'.format(e))
+            else:
+                with open(self.notebook_filename.parent / f'{self.notebook_filename.stem}.pdf', 'w') as f:
+                    f.write(r)
+
+        if to_html:
+            html_data, _ = export(HTMLExporter, self.notebook)
+            with open(self.notebook_filename.parent / f'{self.notebook_filename.stem}.html', "w") as f:
+                f.write(html_data)
 
         # NotebookExporter().from_notebook_node(self.notebook)
         #
@@ -89,23 +102,40 @@ class PIVReportNotebook:
         # return success
 
     def create(self,
-               target_folder: pathlib.Path = None,
+               notebook_filename: Union[str, pathlib.Path] = None,
                execute_notebook: bool = False,
-               notebook_filename: pathlib.Path = None,
                overwrite: bool = False,
                inplace: bool = False,
                to_html: bool = False,
-               to_pdf: bool = False):
+               to_pdf: bool = False) -> nbformat.notebooknode.NotebookNode:
+        """Create the notebook and optionally execute it and save it as html or pdf
 
-        if target_folder is None:
-            target_folder = self.hdf_filename.parent
-        else:
-            target_folder = pathlib.Path(target_folder)
+        Parameters
+        ----------
+        notebook_filename : str or pathlib.Path, optional
+            Filename of the notebook. If None, the filename will be the same as the hdf_filename with the
+            suffix `_StdPIVReport.ipynb` instead of `.hdf`
+        execute_notebook : bool, optional
+            If True, the notebook will be executed after creation
+        overwrite : bool, optional
+            If True, an existing notebook file will be overwritten
+        inplace : bool, optional
+            If True, the notebook will be executed in place. Otherwise, a new notebook will be created
+        to_html : bool, optional
+            If True, the notebook will be converted to html after execution
+        to_pdf : bool, optional
+            If True, the notebook will be converted to pdf after execution
 
-        target_folder.mkdir(parents=True, exist_ok=True)
+        Returns
+        -------
+        notebook: nbformat.notebooknode.NotebookNode
+            The created notebook
+
+        """
+        target_folder = self.hdf_filename.parent
 
         if notebook_filename is None:
-            notebook_filename = target_folder / f'{self.hdf_filename.stem}_standardpostpiv_standard_report.ipynb'
+            notebook_filename = target_folder / f'{self.hdf_filename.stem}_StdPIVReport.ipynb'
         else:
             notebook_filename = pathlib.Path(notebook_filename)
 
@@ -127,19 +157,21 @@ class PIVReportNotebook:
         for section in self.sections:
             cells, _ = section.get_cells(cells, level_numbers)
 
-        notebook = nbf.v4.new_notebook()
+        notebook = nbformat.v4.new_notebook()
 
         notebook['cells'] = cells
 
-        nbf.write(notebook, str(notebook_filename))
+        nbformat.write(notebook, str(notebook_filename))
 
+        logger.info(f'Standard evaluation notebook will be written to: {notebook_filename.absolute()}')
         self.notebook = notebook
 
         if execute_notebook:
-            # core_logger.debug(f'Executing the notebook: {notebook_filename}')
+            logger.info(f'Executing the notebook: {notebook_filename}')
             self.execute(inplace=inplace,
                          to_html=to_html,
                          to_pdf=to_pdf)
+        return notebook
 
     def _get_table_of_content_info(self):
         _toc_data = []

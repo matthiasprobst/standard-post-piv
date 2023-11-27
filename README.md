@@ -1,82 +1,37 @@
 # Standard Post PIV
 
-This package provides the interface and post-processing tools to work with standardized PIV data stored in HDF5 files.
-The PIV files are converted from their original file format using the
-package [piv2hdf](https://git.scc.kit.edu/piv/piv2hdf). Meta data is partly standardized using `standard_names`. A list
-of standard names can is managed by the package piv-convention [piv-convention]().
+This package let's you design and run standardized PIV evaluation on our data. Currently, some prerequisite apply:
 
-## Motivation
+- data is stored in HDF5 files
+- datasets are labeled with the attribute "standard_name"
 
-The fundamental variables in PIV result data remain consistent regardless of the specific flow problem under
-investigation. By adhering to a common standard for data storage, a standardized interface can be established. This
-package facilitates this standardized interface and enables automated analysis of the data. Additionally, it offers the
-capability to generate an automated report in the form of a Jupyter notebook. Users can further customize and expand
-upon this notebook by incorporating their own analyses.
+To convert PIV results into HDF5 files adhering to the naming convention, use the
+[pvi2hdf package](https://gitlab.kit.edu/kit/its/academics/piv/piv2hdf).
 
-### Installation
+## Quickstart
+
+### Installation:
 
 ```bash
-pip install standardpostpiv
+git clone https://github.com/matthiasprobst/standard-post-piv
+cd standardpostpiv
+pip install .
 ```
 
-## Examples
-
-### 1.0 Accessing velocity data
+### Build a standard evaluation report:
 
 ```python
 import standardpostpiv as spp
 
-report = spp.PIVReport('path/to/file.hdf')
+report = spp.get_basic_2D2C_report('piv_test_data.hdf')
+ntb = report.create(
+    notebook_filename='piv_test_data_evaluation.ipynb',
+    execute_notebook=True,
+    overwrite=True,
+    inplace=True,
+    to_html=True,
+)
 
-# get the x-velocity of the 10th timestep in the second plane:
-u_vel = report.velocity.x.sel(time=10, z=2)
-
-# get the magnitude of the velocity at time approx. to 3.12s:
-mag_vel = report.velocity.magnitude.sel(time=3.12, method='nearest')
+# you now got a jupyter notebook `piv_test_data_evaluation.ipynb` and
+# a html file `piv_test_data_evaluation.html`
 ```
-#### 1.1 Velocity in moving frame of reference
-Use the xr-accessor `piv` on the sliced data (here x-velocity) and call `in_moving_frame()`. 
-The relative velocity (velocity in moving frame) is computed:
-```python
-import standardpostpiv as spp
-
-report = spp.PIVReport('path/to/file.hdf')
-
-urel = report.velocity.x[()].piv.in_moving_frame()
-```
-
-### Get scalar PIV variables:
-
-```python
-import standardpostpiv as spp
-
-report = spp.PIVReport('path/to/file.hdf')
-
-# get piv flags at time step 0
-report.flags.isel(time=0).plot(cmap='binary')
-
-# get mask at time step 0
-report.mask.isel(time=0).plot(cmap='binary')
-```
-
-### Compute derivatives:
-
-```python
-
-import standardpostpiv as spp
-
-report = spp.PIVReport('path/to/file.hdf')
-
-# compute the derivative of the x-velocity w.r.t. the y-cordinate
-dudy = report.velocity.x.sel(time=10, z=2).piv.differentiate('y')
-```
-
-### Generate the (jupyter notebook) report:
-
-```python
-import standardpostpiv as spp
-
-report = spp.PIVReport('path/to/file.hdf')
-report.generate_notebook(excecute=True)
-```
-
