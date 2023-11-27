@@ -63,32 +63,32 @@ norm_mag_develop_std = _norm_displ_mag.stdpiv.compute_developing_std(dim='reltim
 for x, y in monitor_points:
     m, c = next(stdplt.markers), next(stdplt.gray_colors)
 
-    # get data at monitor locations:
-    # monitor_rrsd = rrsd.sel(x=x, y=y, method='nearest')
-
     # plot developing properties:
     data = mag_develop_mean.sel(x=x, y=y, method='nearest')
     normalize_data = data/data[-1]  # normalize with mean, which is the last
     line = normalize_data[1:].plot(color=c, ax=axes[1])
-    # line = monitor_rrsd.plot(color=c)
-    
-    # axes[1].scatter(monitor_rrsd.reltime[ddof+1], monitor_rrsd[ddof+1], marker=m, color=line[0].get_color())
-    # axes[1].scatter(monitor_rrsd.reltime[-1], monitor_rrsd[-1], marker=m, color=line[0].get_color())
     axes[0].scatter(x, y, marker=m, color=line[0].get_color())
+
+    line = norm_mag_develop_std.sel(x=x, y=y, method='nearest').plot(color=line[0].get_color(), ax=axes[2], linestyle='--')
     
     axes[0].set_title('mean mag. field')
     axes[1].set_title('Normalized developing mean')
     axes[2].set_title('developing std')
-    
-    # data = mag_develop_std.sel(x=x, y=y, method='nearest')
-    # data = data/data[-1]
-    # line = data[1:].plot(color=line[0].get_color(), ax=axes[2], linestyle='--')
-
-    line = norm_mag_develop_std.sel(x=x, y=y, method='nearest').plot(color=line[0].get_color(), ax=axes[2], linestyle='--')
 
 axes[1].set_ylabel('developing mean')
 axes[2].set_ylabel('developing std')"""),
                ]
+
+    # data = mag_develop_std.sel(x=x, y=y, method='nearest')
+    # data = data/data[-1]
+    # line = data[1:].plot(color=line[0].get_color(), ax=axes[2], linestyle='--')
+    
+    # get data at monitor locations:
+    # monitor_rrsd = rrsd.sel(x=x, y=y, method='nearest')
+    # line = monitor_rrsd.plot(color=c)
+
+    # axes[1].scatter(monitor_rrsd.reltime[ddof+1], monitor_rrsd[ddof+1], marker=m, color=line[0].get_color())
+    # axes[1].scatter(monitor_rrsd.reltime[-1], monitor_rrsd[-1], marker=m, color=line[0].get_color())
 
     for cell in __cells:
         section_convergence.add_cell(cell)
