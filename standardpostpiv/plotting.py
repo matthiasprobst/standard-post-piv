@@ -282,8 +282,8 @@ def piv_scatter(u: Union[np.ndarray, xr.DataArray],
     if indicate_means:
         xlims = ax.get_xlim()
         ylims = ax.get_ylim()
-        plt.hlines(vmean, *xlims, linestyle='--', color='r')
-        plt.vlines(umean, *ylims, linestyle='--', color='r')
+        ax.hlines(vmean, *xlims, linestyle='--', color='r')
+        ax.vlines(umean, *ylims, linestyle='--', color='r')
 
     if u_is_xr and xlabel is None:
         if 'standard_name' in u.attrs:
